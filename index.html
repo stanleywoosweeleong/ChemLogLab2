@@ -29,14 +29,17 @@
   --bg:#f4f6f2; --panel:#ffffff; --panel2:#eef2ea; --line:#c9d4c6;
   --ink:#122117; --dim:#3f5748; --dim2:#556a5c;
   --accent:#137a4a; --accent-ink:#ffffff; --amber:#9a6b00; --red:#b3261e;
-  --r:14px; --mono:ui-monospace,"SF Mono",Menlo,Consolas,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",monospace;
+  --r:14px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Noto Sans SC",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",monospace;
 }
+body.editing{ --bg:#f7edef; --panel:#fffafb; --panel2:#f4e4e8; --line:#d9bfc7; }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}   /* must beat any class that sets display */
 input::placeholder,textarea::placeholder{color:var(--dim2);opacity:1;font-weight:500}
 html,body{margin:0}
 body{
-  background:var(--bg); color:var(--ink);
+  background:var(--bg); color:var(--ink); transition:background .25s;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",
     "PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Noto Sans SC",system-ui,sans-serif;
   padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 20px) env(safe-area-inset-left);
@@ -199,7 +202,7 @@ header{
 .guide-step::before{content:"·";position:absolute;left:3px;top:-1px;color:var(--accent);font-weight:800;font-size:16px}
 .guide-qr{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px 16px;margin:6px 0 4px;text-align:center}
 .guide-qr-h{font-size:17px;font-weight:700;color:var(--ink);margin-bottom:10px}
-.guide-qr-brand{font-size:15px;font-weight:700;color:var(--dark,#0f2419);margin-bottom:16px}
+.guide-qr-brand{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:16px}
 .guide-qr-img{display:inline-flex;padding:0;background:#fff}
 .guide-qr-img svg{display:block}
 .guide-qr-sub{font-size:13px;color:var(--dim);line-height:1.5;margin:18px auto 12px;max-width:300px}
@@ -588,6 +591,12 @@ header{
 .hist-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .hist-when{font-size:15px;font-weight:700;color:var(--ink);font-family:var(--mono)}
 .hist-del{flex:none;border:1px solid var(--line);background:transparent;color:var(--dim2);width:38px;height:38px;border-radius:9px;font-size:15px;cursor:pointer}
+.hist-edit{flex:none;border:1px solid var(--line);background:transparent;color:var(--dim2);width:38px;height:38px;border-radius:9px;font-size:15px;cursor:pointer;margin-right:8px}
+.backup-age{margin:8px 0 2px;font-size:13.5px;font-weight:600;color:var(--dim)}
+.backup-age.stale{color:var(--amber)}
+.edit-banner{display:flex;align-items:center;gap:10px;margin:0 14px 10px;padding:10px 12px;border:1px solid #c96b85;border-radius:12px;background:#fbe3e9;font-size:13.5px;color:var(--ink)}
+.edit-banner span{flex:1;min-width:0}
+.edit-banner button{flex:none;border:1px solid var(--line);background:transparent;color:var(--dim2);padding:7px 12px;border-radius:9px;font-size:13px;cursor:pointer}
 .hist-sec{font-size:14px;color:var(--ink);line-height:1.5;padding:4px 0;border-top:1px solid var(--line)}
 .hist-k{display:inline-block;font-size:13px;font-weight:700;color:var(--dim);margin-right:4px}
 .hist-sec .dim{color:var(--dim2)}
@@ -886,6 +895,10 @@ header{
     </div>
   </div>
 </header>
+<div id="editBanner" class="edit-banner" hidden>
+  <span id="editBannerTxt"></span>
+  <button id="editBannerCancel" type="button"></button>
+</div>
 
 <div class="top-field" id="topField">
   <div class="section-head">
@@ -987,6 +1000,7 @@ header{
         <span id="t-backupH">备份</span>
         <button class="import-btn" id="backupBtn"></button>
       </div>
+      <div id="backupAge" class="backup-age"></div>
       <div class="cost-hint" id="backupHint"></div>
       <button class="add sec-act" id="restoreBtn"></button>
       <input type="file" id="restoreFile" accept=".json,application/json" hidden aria-label="Restore file">
@@ -1137,7 +1151,7 @@ header{
 
 <script>
 "use strict";
-const APP_VER="v71";
+const APP_VER="v74";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
 const STR={
@@ -1183,6 +1197,8 @@ const STR={
     lang:"中文",
     logBtnHome:"记录喷洒",historyBtnHome:"记录",
     logTitle:"记录喷洒",logWhen:"日期与时间",logTargets:"喷洒位置",logWorkers:"工人",logMix:"配方（快照）",
+    editLogA11y:"修改",editBanner:d=>`正在修改 ${d} 的记录——改好数字后按「记录」保存`,editBannerCancel:"取消修改",
+    logUpdate:"保存修改",logUpdated:"已更新，库存已按新数字重算",
     logTargetsFert:"施肥位置",logNoTargetFert:"未选（可在主页用 🏡 选择）",histTargetsFert:"位置：",logAddTarget:"添加位置",logSave:"保存记录",logSaved:"已保存",logNeedTarget:"请至少添加一个位置",
     logNeedWorker:"请至少选择一位工人",logNoWorkerYet:"尚未添加工人",logAddWorkerPrompt:"记录喷洒前需先添加工人。现在前往设置添加？",
     logNoTarget:"尚未添加位置",logNoWorkers:"尚未添加工人（请先到设置添加）",logMixEmpty:"还没填药剂——请回主页填写",logFertEmpty:"还没填肥料——请回主页填写",logNoFarms:"请先在设置中添加农场",
@@ -1261,6 +1277,9 @@ const STR={
     backupH:"备份",backupSave:"导出备份",backupRestore:"从备份恢复",
     backupHint:"备份是给 App 用的完整存档（.json）：农场、区域、行、工人、产品与价格、标签、施用记录与库存，全都在里面，可以再导回来（Excel 导不回来）。换手机、清档之前先存一份。恢复是合并：本机没有的会补上；两边都有的，以最后修改的那一份为准——所以工人改正过或删掉的记录，汇总时会跟着更新。只有「这台手机」的名字是例外，永远保留本机自己的，不会被文件里的名字换掉。",
     backupSaved:"备份已导出",
+    backupNever:"上次备份：从未——这台手机上的记录只有这一份",
+    backupAgo:(d,n)=>`上次备份：${d}（${n===0?"今天":n+" 天前"}）`,
+    backupStaleTail:"——已有一段时间，建议再导出一份",
     backupCopyTitle:"备份内容",backupCopyBtn:"复制",backupCopied:"已复制",
     backupSelectAll:"已选中，请长按复制",
     backupCopyHint:f=>`这里下载不了文件。请复制下面全部内容，存成一个文字文件（${f}），以后就能从这个文件恢复。`,backupBad:"这不是本 App 的备份文件",
@@ -1355,6 +1374,8 @@ const STR={
     lang:"EN",
     logBtnHome:"Log spraying",historyBtnHome:"Logs",
     logTitle:"Log spraying",logWhen:"Date & time",logTargets:"Where sprayed",logWorkers:"Workers",logMix:"Mix (snapshot)",
+    editLogA11y:"Edit",editBanner:d=>`Editing the log from ${d} — fix the numbers, then press Log to save`,editBannerCancel:"Stop editing",
+    logUpdate:"Save changes",logUpdated:"Updated — stock recalculated from the new numbers",
     logTargetsFert:"Where fertilised",logNoTargetFert:"None — pick with \u{1F3E1} on the home screen",histTargetsFert:"Location: ",logAddTarget:"Add location",logSave:"Save log",logSaved:"Saved",logNeedTarget:"Add at least one location",
     logNeedWorker:"Select at least one worker",logNoWorkerYet:"No workers added yet",logAddWorkerPrompt:"You need at least one worker before logging. Go to Settings to add one now?",
     logNoTarget:"No location added yet",logNoWorkers:"No workers yet (add them in Settings)",logMixEmpty:"No chemical entered yet \u2014 fill it in on the home screen",logFertEmpty:"No fertiliser entered yet \u2014 fill it in on the home screen",logNoFarms:"Add a farm in Settings first",
@@ -1433,6 +1454,9 @@ const STR={
     backupH:"Backup",backupSave:"Save backup",backupRestore:"Restore from backup",
     backupHint:"A full copy for the app (.json): farms, zones, rows, workers, products and prices, tags, logs and stock \u2014 all of it, and it can be read back in (the Excel export cannot). Save one before changing phones or clearing the year. Restoring merges: anything this phone is missing is added, and where both hold the same record the later edit wins \u2014 so a correction or a deletion made on a worker\u2019s phone carries across. This phone\u2019s own name is the one exception, and is always kept.",
     backupSaved:"Backup saved",
+    backupNever:"Last backup: never \u2014 this phone holds the only copy of these records",
+    backupAgo:(d,n)=>`Last backup: ${d} (${n===0?"today":n+(n===1?" day":" days")+" ago"})`,
+    backupStaleTail:" \u2014 it has been a while; export a fresh one",
     backupCopyTitle:"Backup contents",backupCopyBtn:"Copy",backupCopied:"Copied",
     backupSelectAll:"Selected \u2014 press and hold to copy",
     backupCopyHint:f=>`Downloading is blocked here. Copy everything below and save it as a text file called ${f}; you can restore from that file later.`,backupBad:"That is not a backup from this app",
@@ -1608,6 +1632,7 @@ function downloadBackup(fnameOverride){
     a.click();
     a.remove();
     setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} }, 30000);
+    store("tm_lastBackup", String(nowTs()));
     toast(S.backupSaved);
     return true;
   }catch(err){
@@ -1811,6 +1836,7 @@ function stampChanged(bucket, src){
   });
 }
 
+try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{}); }catch(e){}
 let lists = loadLists();
 primeStamps("lists", lists);
 function saveLists(){ stampChanged("lists", lists); store("tm_lists", JSON.stringify(lists)); }
@@ -2818,6 +2844,7 @@ function renderText(){
   renderTopField();
 }
 function renderAll(){
+  if(typeof renderEditBanner==="function" && $("#editBanner")) renderEditBanner();
   renderText(); renderVols(); renderTrees();
   if(isFert()) renderFert(); else renderChems();
   renderSummary(); renderFertStock();
@@ -2963,6 +2990,23 @@ function renderSettings(){
   $("#t-farmsH").textContent=S.farms;
   $("#t-workersH").textContent=S.workers;
   $("#t-backupH").textContent=S.backupH;
+  (function(){
+    const el=$("#backupAge"); if(!el) return;
+    const t=Number(localStorage.getItem("tm_lastBackup"))||0;
+    const hasData = aliveLogs().length>0 || aliveMoves().length>0;
+    if(!t){
+      el.textContent=S.backupNever;
+      el.classList.toggle("stale", hasData);   // an empty phone has nothing at risk
+      el.hidden=!hasData;                       // and needs no line at all
+      return;
+    }
+    el.hidden=false;
+    const days=Math.max(0, Math.floor((nowTs()-t)/86400000));
+    const d=new Date(t), lbl=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    const stale = hasData && days>=14;
+    el.textContent=S.backupAgo(lbl,days) + (stale?S.backupStaleTail:"");
+    el.classList.toggle("stale", stale);
+  })();
   $("#backupHint").textContent=S.backupHint;
   $("#backupBtn").textContent=S.backupSave;
   $("#restoreBtn").textContent=S.backupRestore;
@@ -3430,7 +3474,7 @@ function mixSnapshot(){
     }
     chems.push({
       name:(c.name||"").trim(), pack:(c.pack||"").trim(),
-      mode:c.mode, rate:String(c.rate||""), basis:String(c.basis||"1"),
+      mode:c.mode, rate:String(c.rate||""), rateUnit:c.rateUnit||"", basis:String(c.basis||"1"),
       disp:res.disp, dispUnit:res.dispUnit,
       packs,
       packUnit:res.family==="mass"?STR[lang].bagUnit:STR[lang].bottleUnit,
@@ -3443,11 +3487,99 @@ function mixSnapshot(){
   });
   return { tank:V||"", chems };
 }
+// ---- editing a log in place --------------------------------------------
+// A typo used to mean delete + retype the whole mix, and the re-entry
+// snapshotted today's date and today's prices instead of the original ones.
+// Editing reuses the entry screens the farmer already knows: the log's own
+// inputs load back into the calculator, the banner says what is being edited,
+// and Save writes into the same record — same id, same ts, fresh `up`, so the
+// correction also carries to whoever consolidates this phone's file. Usage is
+// derived from logs, so stock follows the new numbers by itself.
+// The pre-edit draft is stashed INSIDE persisted state: closing the app
+// mid-edit loses nothing, and cancel puts the half-typed mix back.
+function inferRateUnit(c){
+  // spray logs before v72 stored the rate but not its unit; the stored total
+  // is pure arithmetic, so try each unit and keep the one that reproduces it
+  if(c.rateUnit!=null && c.rateUnit!=="") return c.rateUnit;
+  if(c.mode==="ratio" || c.disp==null) return "";
+  const fam=(parsePack(c.pack)||{}).family || (parseRate(c.rate+String(c.dispUnit||""))||{}).family;
+  const cands = fam==="mass" ? ["g","kg"] : ["ml","L"];
+  for(const u of cands){
+    const res=calcChem({...c, rateUnit:u});
+    if(res.ok && res.disp===c.disp && res.dispUnit===c.dispUnit) return u;
+  }
+  return "";
+}
+function startLogEdit(id){
+  const r=logs.find(x=>x.id===id && !x.deleted); if(!r) return;
+  if(!state.editingLogId){
+    state.editStash={ mode:state.mode, tank:state.tank,
+      chems:JSON.parse(JSON.stringify(state.chems)),
+      fert:JSON.parse(JSON.stringify(state.fert)) };
+  }
+  state.editingLogId=id;
+  if(r.mode==="fert"){
+    state.mode="fert";
+    state.fert.trees=String(r.trees||"");
+    state.fert.targets=(r.targets||[]).map(t=>({kind:t.kind,fid:t.fid,zid:t.zid||"",rid:t.rid||"",from:t.from||"",to:t.to||""}));
+    state.fert.items=(r.chems||[]).map(c=>({ id:newId(), name:c.name||"", pack:c.pack||"",
+      rate:String(c.rate||""), rateUnit:c.rateUnit||"kg", per:String(c.per||"1"),
+      scoop:(c.rateUnit==="scoop"&&c.scoopG)?String(c.scoopG)+"g":"", open:true }));
+    if(!state.fert.items.length) state.fert.items=[blankFert()];
+  } else {
+    state.mode="spray";
+    state.tank=String(r.tank||"");
+    state.chems=(r.chems||[]).map(c=>({ id:newId(), name:c.name||"", pack:c.pack||"",
+      mode:(c.mode==="ratio")?"ratio":"per_L", rate:String(c.rate||""),
+      rateUnit:inferRateUnit(c), basis:String(c.basis||"") }));
+    if(!state.chems.length) state.chems=[blankChem()];
+  }
+  save();
+  $("#historyPanel").hidden=true;
+  renderAll(); refreshStockLines(); renderEditBanner();
+  window.scrollTo(0,0);
+}
+function endLogEdit(restoreDraft){
+  if(restoreDraft && state.editStash){
+    const st=state.editStash;
+    state.mode=st.mode; state.tank=st.tank;
+    state.chems=JSON.parse(JSON.stringify(st.chems||[]));
+    state.fert=JSON.parse(JSON.stringify(st.fert||state.fert));
+    if(!state.chems.length) state.chems=[blankChem()];
+  }
+  delete state.editingLogId; delete state.editStash;
+  save();
+  renderAll(); refreshStockLines(); renderEditBanner();
+}
+function renderEditBanner(){
+  const S=STR[lang], b=$("#editBanner");
+  const r=state.editingLogId ? logs.find(x=>x.id===state.editingLogId && !x.deleted) : null;
+  document.body.classList.toggle("editing", !!r);
+  if(!r){ if(state.editingLogId) { delete state.editingLogId; delete state.editStash; save(); } b.hidden=true; return; }
+  b.hidden=false;
+  $("#editBannerTxt").textContent=S.editBanner(fmtWhen(r.when));
+  const c=$("#editBannerCancel"); c.textContent=S.editBannerCancel;
+  c.onclick=()=>endLogEdit(true);
+}
 $("#logBtn").onclick=async()=>{
   const S=STR[lang];
   if(!alive(lists.workers).length){
     toast(S.logNoWorkerYet);
     if(await askConfirm(S.logAddWorkerPrompt, {yes:S.goSettings, danger:false})){ $("#settingsPanel").hidden=false; renderSettings(); setTimeout(()=>{ const el=$("#workerAddSid"); if(el){ el.scrollIntoView({block:"center"}); el.focus(); } },200); }
+    return;
+  }
+  const editing = state.editingLogId ? logs.find(x=>x.id===state.editingLogId && !x.deleted) : null;
+  if(editing){
+    // the sheet opens showing the log's own date, places and people — only
+    // what the farmer changes actually changes
+    logDraft={ when:editing.when||nowLocalInput(),
+      targets:(editing.targets||[]).map(t=>({kind:t.kind,fid:t.fid,zid:t.zid||"",rid:t.rid||"",from:t.from||"",to:t.to||""})),
+      workerIds:new Set() };
+    (editing.workers||[]).forEach(sw=>{
+      const w=alive(lists.workers).find(x=>(x.sid||"")===(sw.sid||"") && (x.name||"")===(sw.name||""));
+      if(w) logDraft.workerIds.add(w.id);   // renamed or removed workers just need re-picking
+    });
+    renderLogSheet(); $("#logSheet").hidden=false;
     return;
   }
   logDraft={ when:nowLocalInput(), targets:[], workerIds:new Set() };
@@ -3472,7 +3604,7 @@ function renderLogSheet(){
   $("#logTargetReq").hidden = isFert();          // optional when fertilising
   $("#logAddTarget").hidden = fertSeeded;        // already answered upstairs
   $("#t-logMix").textContent=isFert()?S.logFertMix:S.logMix; $("#logAddTarget").textContent="＋ "+S.logAddTarget;
-  $("#logCancel").textContent=S.cancel; $("#logSave").textContent=S.logSave;
+  $("#logCancel").textContent=S.cancel; $("#logSave").textContent=state.editingLogId?S.logUpdate:S.logSave;
   $("#logWhen").value=logDraft.when; $("#logWhen").onchange=e=>{ logDraft.when=e.target.value; };
   renderLogTargets(); renderLogWorkers(); renderLogMix();
 }
@@ -3820,9 +3952,21 @@ $("#logSave").onclick=()=>{
   const snap=mixSnapshot(); const workers=[];
   logDraft.workerIds.forEach(id=>{ const w=lists.workers.find(x=>x.id===id); if(w) workers.push({sid:w.sid||"", name:w.name||""}); });
   const targets = logDraft.targets.map(t=>({ ...t, label:targetLabel(t) }));
-  logAdd({ when:logDraft.when||nowLocalInput(), targets, workers,
-    mode: isFert()?"fert":"spray", tank:snap.tank, trees:snap.trees||"", chems:snap.chems });
-  $("#logSheet").hidden=true; logDraft=null; refreshStockLines(); toast(S.logSaved);
+  const rec={ when:logDraft.when||nowLocalInput(), targets, workers,
+    mode: isFert()?"fert":"spray", tank:snap.tank, trees:snap.trees||"", chems:snap.chems };
+  const editing = state.editingLogId ? logs.find(x=>x.id===state.editingLogId && !x.deleted) : null;
+  if(editing){
+    // same id, same ts — the record's identity and creation moment stay; only
+    // its content moves, and saveLogs() stamps `up` so the fix consolidates
+    Object.assign(editing, rec);
+    saveLogs();
+    $("#logSheet").hidden=true; logDraft=null;
+    endLogEdit(true);                      // the pre-edit draft comes back
+    toast(S.logUpdated);
+  } else {
+    logAdd(rec);
+    $("#logSheet").hidden=true; logDraft=null; refreshStockLines(); toast(S.logSaved);
+  }
 };
 // in-app confirm dialog -> returns a Promise<bool>; reliable on iOS where native confirm() can be flaky
 function askConfirm(msg, opts){
@@ -4852,11 +4996,12 @@ function renderHistory(){
     const hasTargets=(r.targets||[]).length>0;
     const targetsK = fertLog ? S.histTargetsFert : S.histTargets;
     card.innerHTML=`
-      <div class="hist-top"><span class="hist-when">${fmtWhen(r.when)}${fertLog?' 🌾':''}</span><button class="hist-del" aria-label="delete">🗑</button></div>
+      <div class="hist-top"><span class="hist-when">${fmtWhen(r.when)}${fertLog?' 🌾':''}</span><button class="hist-edit" aria-label="${S.editLogA11y}">✎</button><button class="hist-del" aria-label="delete">🗑</button></div>
       ${(fertLog && !hasTargets) ? "" : `<div class="hist-sec"><span class="hist-k">${targetsK}</span>${targets}</div>`}
       <div class="hist-sec"><span class="hist-k">${S.histWorkers}</span>${workers}</div>
       <div class="hist-sec"><span class="hist-k">${mixK}</span>${mixHead}<br>${chems}</div>`;
     card.querySelector(".hist-del").onclick=async()=>{ if(await askConfirm(S.histDelConfirm, {yes:S.confirmDelete})){ logRemove(r.id); renderHistory(); refreshStockLines(); } };
+    card.querySelector(".hist-edit").onclick=()=>startLogEdit(r.id);
     host.appendChild(card);
   });
 }
@@ -5098,6 +5243,7 @@ function guideSections(){
       "自动按月份分组，显示每月合计与总计。月份是折叠的，标题上就写着当月几条记录、共多少钱；点开才看明细，一两年下来也不会拖成一长串。",
       "每笔记录展开每种药剂的成本明细（桶混时特别有用）。",
       "「人工调整」：现场无法精准称量时，可手动加减金额，旁边写上原因——促销折扣、运费之类——原因会一并保存并导出。它只改金额，不动库存；如果实际用量真的多了，请改记录，或让下次盘点来纠正。",
+      "打错了字不用删掉重来：点记录上的 ✎，整份配方会载回主页，改好数字后按「记录」保存——日期、位置、工人都保留原来的，库存自动按新数字重算。改到一半按「取消修改」，之前正在算的配方会原样回来。",
       "记录可删除／恢复／永久删除，也可导出 Excel。",
     ]},
     {icon:"📴", title:"10. 离线、备份与年结", body:[
@@ -5180,6 +5326,7 @@ function guideSections(){
       "Auto-grouped by month, with month totals and a grand total. Months stay folded, the heading showing that month\u2019s number of records and what they cost; open one to see the detail, so a year or two does not become one long scroll.",
       "Each log breaks down the cost per chemical (great for tank-mixes).",
       "Manual adjust: nudge the total up or down \u2014 a promo discount, a delivery charge \u2014 and write the reason beside it, which is kept and exported. It changes money only; stock is untouched, so if you actually used more product, correct the log or let a count catch it.",
+      "A typo does not mean delete and retype: tap \u270e on the log and the whole mix loads back onto the home screen \u2014 fix the numbers, press Log, and it saves into the same record, keeping the original date, place and people, with stock recalculated from the new figures. Stop editing and whatever you were mixing before comes back as it was.",
       "Records can be deleted / restored / purged, and exported to Excel."
     ]},
     {icon:"📴", title:"10. Offline, backup and year-end", body:[
