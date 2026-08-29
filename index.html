@@ -1133,7 +1133,7 @@ header{
 
 <script>
 "use strict";
-const APP_VER="v69";
+const APP_VER="v70";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
 const STR={
@@ -1494,12 +1494,12 @@ state.chems = (Array.isArray(state.chems) ? state.chems : []).map(c=>{
   c = (c && typeof c==="object") ? c : {};
   let rate = (c.rate!=null?String(c.rate):"");
   // strip any stray unit letters from rate (older builds stored e.g. "50ml")
-  rate = rate.replace(/[^\d.]/g,"");
+  rate = rate.replace(/[^\d.,]/g,"");
   return {
     id:c.id ?? newId(),
     name:c.name||"", rate, rateUnit:c.rateUnit||"", pack:c.pack||"",
     mode:(c.mode||c.unit)==="ratio" ? "ratio" : "per_L",
-    basis:(c.basis!=null?String(c.basis).replace(/[^\d.]/g,""):"")
+    basis:(c.basis!=null?String(c.basis).replace(/[^\d.,]/g,""):"")
   };
 });
 if(typeof state.tank!=="string" && typeof state.tank!=="number") state.tank="";
@@ -1517,10 +1517,10 @@ state.mode = (state.mode==="fert") ? "fert" : "spray";
                 rid:t.rid?String(t.rid):"", from:t.from||"", to:t.to||""})),
     items: (Array.isArray(f.items)?f.items:[]).filter(x=>x&&typeof x==="object").map(x=>({
       id:x.id||newId(), name:x.name||"", pack:x.pack||"",
-      rate:(x.rate!=null?String(x.rate):"").replace(/[^\d.]/g,""),
+      rate:(x.rate!=null?String(x.rate):"").replace(/[^\d.,]/g,""),
       rateUnit:(["g","bag","scoop"].includes(x.rateUnit)?x.rateUnit:"kg"),
       scoop:x.scoop||"",
-      per:(x.per!=null?String(x.per):"").replace(/[^\d.]/g,""),
+      per:(x.per!=null?String(x.per):"").replace(/[^\d.,]/g,""),
       open: x.open!==false
     }))
   };
@@ -1725,7 +1725,10 @@ function closeBooks(before){
   logs=logs.filter(r=>!ids.has(r.id));
   moves=moves.filter(m=>String(m.when||"").slice(0,10) >= cut);
   opening.forEach(({p,b})=>{
-    moves.push({id:newId(), ts:nowTs(), when:stamp, key:p.key, name:p.name,
+    // ts:0, not now: events at the same instant are ordered by ts, and a real
+    // count a farmer made at exactly the cut moment is kept in the books — it
+    // must outrank this synthetic opening, not be overridden by it
+    moves.push({id:newId(), ts:0, when:stamp, key:p.key, name:p.name,
                 pack:p.pack||"", kind:"count", packs:b.bal, note});
   });
   saveLogs(); saveMoves();
@@ -2000,12 +2003,12 @@ function workersBulkImport(rows){
 function chemProductAdd(name, pack, price){
   const nm=(name||"").trim();
   if(!nm) return null;
-  const c={id:newId(), name:nm, pack:(pack||"").trim(), price:(price!=null?String(price).replace(/[^\d.]/g,""):"")};
+  const c={id:newId(), name:nm, pack:(pack||"").trim(), price:(price!=null?String(price).replace(/[^\d.,]/g,""):"")};
   lists.chemProducts.push(c); saveLists(); return c;
 }
 function chemProductSet(id, field, value){
   const c=lists.chemProducts.find(x=>x.id===id); if(!c) return;
-  if(field==="price") value=String(value).replace(/[^\d.]/g,"");
+  if(field==="price") value=String(value).replace(/[^\d.,]/g,"");
   c[field]=(field==="name"||field==="pack")?String(value).trim():value;
   saveLists();
 }
@@ -2015,7 +2018,7 @@ function chemPriceByName(name){
   const nm=(name||"").trim().toLowerCase(); if(!nm) return null;
   const c=alive(lists.chemProducts).find(x=>(x.name||"").trim().toLowerCase()===nm);
   if(!c) return null;
-  const price=parseFloat(c.price);
+  const price=pnum(c.price);
   return price>0 ? price : null;
 }
 
@@ -2023,12 +2026,12 @@ function chemPriceByName(name){
 function chemDoseAdd(name, unit, price){
   const nm=(name||"").trim();
   if(!nm) return null;
-  const c={id:newId(), name:nm, unit:(unit==="g"?"g":"ml"), price:(price!=null?String(price).replace(/[^\d.]/g,""):"")};
+  const c={id:newId(), name:nm, unit:(unit==="g"?"g":"ml"), price:(price!=null?String(price).replace(/[^\d.,]/g,""):"")};
   lists.chemDoses.push(c); saveLists(); return c;
 }
 function chemDoseSet(id, field, value){
   const c=lists.chemDoses.find(x=>x.id===id); if(!c) return;
-  if(field==="price") value=String(value).replace(/[^\d.]/g,"");
+  if(field==="price") value=String(value).replace(/[^\d.,]/g,"");
   if(field==="unit") value=(value==="g"?"g":"ml");
   c[field]=(field==="name")?String(value).trim():value;
   saveLists();
@@ -2039,7 +2042,7 @@ function chemDoseByName(name){
   const nm=(name||"").trim().toLowerCase(); if(!nm) return null;
   const c=alive(lists.chemDoses).find(x=>(x.name||"").trim().toLowerCase()===nm);
   if(!c) return null;
-  const price=parseFloat(c.price);
+  const price=pnum(c.price);
   return price>0 ? {unit:c.unit, price} : null;
 }
 
@@ -2117,17 +2120,24 @@ function trashPurgeAll(){
 }
 
 
+function numIn(v){
+  let t=String(v==null?"":v).trim().replace(/\s+/g,"");
+  if(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) return t.replace(/,/g,"");
+  if(/^\d+,\d+$/.test(t)) return t.replace(",",".");
+  return t;
+}
+function pnum(v){ return parseFloat(numIn(v)); }
 function tankVol(){
-  const v=parseFloat(state.tank); return (v>0)?v:0;
+  const v=pnum(state.tank); return (v>0)?v:0;
 }
 
 // Parse free-text rate like "500g", "1.5 kg", "500ml", "1L" (case-insensitive, space optional).
 // Returns {num, family:'mass'|'vol', baseUnit:'g'|'ml', baseVal (g or ml)} or null.
 function parseRate(txt){
   if(txt==null) return null;
-  const m = String(txt).trim().match(/^([\d.]+)\s*(kg|tonne|tonnes|ton|tons|mt|ml|g|t|l|\u516c\u65a4|\u5343\u514b|\u6beb\u5347|\u5347|\u514b|\u5428)?$/i);
-  if(!m || !(parseFloat(m[1])>0)) return null;
-  const num = parseFloat(m[1]);
+  const m = String(txt).trim().match(/^([\d.,]+)\s*(kg|tonne|tonnes|ton|tons|mt|ml|g|t|l|\u516c\u65a4|\u5343\u514b|\u6beb\u5347|\u5347|\u514b|\u5428)?$/i);
+  if(!m || !(pnum(m[1])>0)) return null;
+  const num = pnum(m[1]);
   let u = (m[2]||"").toLowerCase();
   const zh = {"\u516c\u65a4":"kg","\u5343\u514b":"kg","\u514b":"g","\u5428":"t","\u5347":"l","\u6beb\u5347":"ml"};
   if(zh[u]) u = zh[u];
@@ -2152,13 +2162,13 @@ function calcChem(c){
   if(!pk) return {ok:false, needPack:true};
   const family  = pk.family;             // 'mass' (g) or 'vol' (ml)
   const baseUnit = family==="mass" ? "g" : "ml";
-  const N = parseFloat(c.rate);
+  const N = pnum(c.rate);
   if(!(N>0)) return {ok:false};
   let base;
   if(c.mode==="ratio"){                  // 1 : N  (product : water)
     base = (V/N)*1000;                   // g or ml of product for the whole tank
   } else {                               // amount (in chosen unit) per (basis) litres of water
-    const basis = parseFloat(c.basis);
+    const basis = pnum(c.basis);
     if(!(basis>0)) return {ok:false, needBasis:true};   // require an explicit per-litres value
     // convert the entered amount to base units (g or ml) using the chosen rate unit
     const unit = c.rateUnit || (family==="mass"?"g":"ml");
@@ -2235,8 +2245,8 @@ function renderChems(){
       ? `${fmt(res.disp)} <small>${res.dispUnit}</small>`
       : (res.needPack ? `<span class="need-pack">${S.needPackMsg}</span>` : (res.needBasis ? `<span class="need-pack">${S.needBasisMsg}</span>` : "–"));
     const initSub = "";
-    const rateVal = (c.rate!=null?String(c.rate):"").replace(/"/g,'&quot;');
-    const packVal = (c.pack!=null?String(c.pack):"").replace(/"/g,'&quot;');
+    const rateVal = esc(c.rate!=null?String(c.rate):"");
+    const packVal = esc(c.pack!=null?String(c.pack):"");
     // rate-unit options depend on the package family: mass -> g/kg, vol -> ml/L
     const pk = parseRate(c.pack);
     const fam = pk ? pk.family : "mass";
@@ -2245,7 +2255,7 @@ function renderChems(){
     const rUnit = c.rateUnit || u1;   // default to the small unit
     card.innerHTML=`
       <div class="chem-top">
-        <input class="chem-name" name="chemName" aria-label="${S.name}" placeholder="${S.name}" value="${(c.name||"").replace(/"/g,'&quot;')}">
+        <input class="chem-name" name="chemName" aria-label="${S.name}" placeholder="${S.name}" value="${esc(c.name||"")}">
         <button class="del" title="delete">🗑</button>
       </div>
       <div class="pack-row">
@@ -2269,7 +2279,7 @@ function renderChems(){
         </div>
         <span class="rate-per">${S.perWord}</span>
         <div class="basis-grp">
-          <input class="basis-in" name="perLitres" aria-label="${S.ariaBasis}" inputmode="decimal" type="text" value="${(c.basis!=null?String(c.basis):'').replace(/"/g,'&quot;')}" placeholder="">
+          <input class="basis-in" name="perLitres" aria-label="${S.ariaBasis}" inputmode="decimal" type="text" value="${esc(c.basis!=null?String(c.basis):'')}" placeholder="">
           <span class="rate-perL">L</span>
         </div>
       </div>`}
@@ -2305,7 +2315,7 @@ function renderChems(){
     };
     const rateI=card.querySelector(".rate-in");
     rateI.oninput=e=>{
-      const cleaned=e.target.value.replace(/[^\d.]/g,"");
+      const cleaned=e.target.value.replace(/[^\d.,]/g,"");
       if(cleaned!==e.target.value) e.target.value=cleaned;
       c.rate=cleaned; save(); updateResult(card,c); renderSummary();
     };
@@ -2322,7 +2332,7 @@ function renderChems(){
     const basisI=card.querySelector(".basis-in");
     if(basisI){
       basisI.oninput=e=>{
-        const cleaned=e.target.value.replace(/[^\d.]/g,"");
+        const cleaned=e.target.value.replace(/[^\d.,]/g,"");
         if(cleaned!==e.target.value) e.target.value=cleaned;
         c.basis=cleaned; save(); updateResult(card,c); renderSummary();
       };
@@ -2350,7 +2360,7 @@ function renderSummary(){
     any=true;
     const nm = c.name?.trim() || (lang==="zh"?"未命名药剂":"Unnamed");
     const row=document.createElement("div"); row.className="srow";
-    row.innerHTML=`<span>${nm}</span><span class="q">${fmt(res.disp)} <small style="color:var(--dim);font-weight:400">${res.dispUnit}</small></span>`;
+    row.innerHTML=`<span>${esc(nm)}</span><span class="q">${fmt(res.disp)} <small style="color:var(--dim);font-weight:400">${res.dispUnit}</small></span>`;
     host.appendChild(row);
   });
   if(V && any){
@@ -2389,7 +2399,7 @@ function treeQty(){ const n=parseInt(state.fert.trees,10); return (n>0)?n:0; }
 function parsePack(txt){
   const t=String(txt==null?"":txt).trim();
   if(!t) return null;
-  if(/^[\d.]+$/.test(t)) return null;          // "1" — a unit is missing
+  if(/^[\d.,]+$/.test(t)) return null;         // "1" — a unit is missing
   const r=parseRate(t);
   if(!r) return null;
   return {family:r.family, baseVal:r.baseVal};  // g for mass, ml for volume
@@ -2403,7 +2413,7 @@ function scaleAmount(base, family){
 }
 function parseSolid(txt, dflt){
   if(txt==null || String(txt).trim()==="") return null;
-  const bare = /^[\d.]+$/.test(String(txt).trim());
+  const bare = /^[\d.,]+$/.test(String(txt).trim());
   const r = parseRate(bare ? String(txt).trim()+dflt : txt);
   return (r && r.family==="mass") ? r : null;
 }
@@ -2423,8 +2433,8 @@ function scoopCal(it){
 // `per` is how many trees one dose covers, so "1 bag per 3 trees" is expressible.
 function calcFert(it){
   const S=STR[lang];
-  const pv=parseFloat(it.per), P=(pv>0)?pv:1;
-  const N=parseFloat(it.rate);
+  const pv=pnum(it.per), P=(pv>0)?pv:1;
+  const N=pnum(it.rate);
   const T=treeQty();
 
   if(it.rateUnit==="scoop"){
@@ -2540,7 +2550,7 @@ function renderFert(){
   state.fert.items.forEach((it,i)=>{
     const res=calcFert(it);
     const card=document.createElement("div"); card.className="chem";
-    const esc2=v=>String(v==null?"":v).replace(/"/g,"&quot;");
+    const esc2=esc;
     const byBag = it.rateUnit==="bag";
     const byScoop = it.rateUnit==="scoop";
     const cal = byScoop ? scoopCal(it) : null;
@@ -2591,7 +2601,7 @@ function renderFert(){
     if(scI) scI.oninput=e=>{ it.scoop=e.target.value; touch(); };
     const perI=card.querySelector(".per-in");
     if(perI) perI.oninput=e=>{
-      const c=e.target.value.replace(/[^\d.]/g,"");
+      const c=e.target.value.replace(/[^\d.,]/g,"");
       if(c!==e.target.value) e.target.value=c;
       it.per=c; touch();
     };
@@ -2606,7 +2616,7 @@ function renderFert(){
       ch.onclick=()=>{ it.pack=ch.dataset.pack; save(); renderFert(); renderSummary(); };
     });
     card.querySelector(".rate-in").oninput=e=>{
-      const c=e.target.value.replace(/[^\d.]/g,"");
+      const c=e.target.value.replace(/[^\d.,]/g,"");
       if(c!==e.target.value) e.target.value=c;
       it.rate=c; touch();
     };
@@ -2659,9 +2669,9 @@ function fertRateLabel(it){
   const u = it.rateUnit==="bag" ? S.unitBag
           : it.rateUnit==="scoop" ? S.unitScoop
           : (it.rateUnit==="g" ? "g" : "kg");
-  const p = parseFloat(it.per);
+  const p = pnum(it.per);
   const tail = (p>0 && p!==1) ? ` ${S.perWordF} ${fmt(p)} ${S.treesWord}` : ` ${S.perTree}`;
-  return `${fmt(parseFloat(it.rate)||0)} ${u}${tail}`;
+  return `${fmt(pnum(it.rate)||0)} ${u}${tail}`;
 }
 function buildFertShareText(){
   const S=STR[lang], T=treeQty();
@@ -3040,7 +3050,7 @@ function renderTrash(){
     host.appendChild(row);
   });
 }
-function esc(s){ return (s||"").replace(/"/g,'&quot;'); }
+function esc(s){ return (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
 const zoneOpen = new Set();   // farm ids whose zone list is expanded (per session)
 const zoneDetailOpen = new Set();   // zone ids whose detail (rows/tree range) is expanded
@@ -3857,7 +3867,7 @@ function moveRemove(id){ const m=moves.find(x=>x.id===id); if(m){ m.deleted=nowT
   (Array.isArray(old)?old:[]).filter(r=>r&&!r.deleted).forEach(r=>{
     (r.items||[]).forEach(it=>{
       const packG=it.pack?(parsePack(it.pack)||{}).baseVal:null;
-      const packs=(parseFloat(it.bags)||0) + (packG&&it.openG?it.openG/packG:0);
+      const packs=(pnum(it.bags)||0) + (packG&&it.openG?it.openG/packG:0);
       moves.push({id:newId(), ts:nowTs(), when:r.when, key:prodKey(it.name), name:it.name,
                   pack:it.pack||"", kind:"count", packs, note:r.note||""});
     });
@@ -4098,7 +4108,7 @@ function blankCountItem(){ return {id:newId(), name:"", pack:"", bags:"", open:"
 
 function countItemPacks(it){
   const pk=it.pack?parsePack(it.pack):null;
-  const bags=parseFloat(it.bags)||0;
+  const bags=pnum(it.bags)||0;
   const op=it.open?parsePack(it.open):null;
   // an opened bottle is measured in ml, an opened bag in kg — they must match
   const sameFamily = pk && op && op.family===pk.family;
@@ -4216,7 +4226,7 @@ function renderStockBalances(){
     const h=document.createElement("button"); h.className="bal-group"+(folded?" folded":"");
     h.type="button";
     h.innerHTML=`<span class="bg-caret">${folded?"\u203a":"\u2304"}</span>
-      <span>${g.label}</span><span class="bg-n">${g.items.length}</span>`;
+      <span>${esc(g.label)}</span><span class="bg-n">${g.items.length}</span>`;
     h.onclick=()=>{
       if(balFolded.has(g.k)) balFolded.delete(g.k); else balFolded.add(g.k);
       renderStockBalances();
@@ -4272,7 +4282,7 @@ function buyLoadSilent(n){
   buyDraft.need=String(Math.round((n.haveKnown?n.short:n.need)*100)/100);
 }
 function buyNumbers(){
-  const need=parseFloat(buyDraft.need);
+  const need=pnum(buyDraft.need);
   const ceilNeed=need>0?Math.max(1,Math.ceil(need-1e-9)):0;
   const tb=String(buyDraft.buy||"").trim();
   const paid=(tb!=="" && parseInt(tb,10)>=0) ? parseInt(tb,10) : ceilNeed;
@@ -4389,7 +4399,7 @@ function renderBuyForm(){
         ? `<div class="bo-ok">${S.buyEnough(packsLabel(b.spare,pk))}</div>`
         : `<div class="bo-short">${S.buyShort(packsLabel(b.spare,pk))}</div>`;
     }
-    const price=parseFloat(buyDraft.price);
+    const price=pnum(buyDraft.price);
     if(price>0 && b.paid>0){
       const total=price*b.paid;
       h+=`<div class="bo-row"><span class="bo-k">${S.buyTotal}</span><span class="bo-v">${rm(total)}</span></div>`;
@@ -4403,7 +4413,7 @@ function renderBuyForm(){
     $("#buyOut").innerHTML=h;
     const warn=$("#buyPackWarn");
     if(warn) warn.textContent =
-      (parseFloat(buyDraft.price)>0 && !parsePack(String(buyDraft.pack||"").trim())) ? S.pricePackWarn : "";
+      (pnum(buyDraft.price)>0 && !parsePack(String(buyDraft.pack||"").trim())) ? S.pricePackWarn : "";
     const last=aliveMoves().filter(m=>m.key===prodKey(buyDraft.name) && m.kind==="in" && m.price>0)
       .sort((a,b)=>String(b.when||"").localeCompare(String(a.when||"")))[0];
     const lastEl=$("#buyLast");
@@ -4441,14 +4451,14 @@ function renderBuyForm(){
     });
     out(); };
   $("#buyPack").oninput=e=>{ buyDraft.pack=e.target.value; buyAppliedKey=prodKey(buyDraft.name); out(); };
-  $("#buyNeed").oninput=e=>{ const c=e.target.value.replace(/[^\d.]/g,""); if(c!==e.target.value) e.target.value=c; buyDraft.need=c; out(); };
+  $("#buyNeed").oninput=e=>{ const c=e.target.value.replace(/[^\d.,]/g,""); if(c!==e.target.value) e.target.value=c; buyDraft.need=c; out(); };
   $("#buyPaid").oninput=e=>{ buyDraft.buy=digits(e); out(); };
   $("#buyPrice").oninput=e=>{
-    const c=e.target.value.replace(/[^\d.]/g,""); if(c!==e.target.value) e.target.value=c;
+    const c=e.target.value.replace(/[^\d.,]/g,""); if(c!==e.target.value) e.target.value=c;
     buyDraft.price=c;
     // writing it here is enough — no purchase needed just to correct a price
     const nm=String(buyDraft.name||"").trim();
-    if(nm && parseFloat(c)>0) setProductPrice(nm, String(buyDraft.pack||"").trim(), parseFloat(c));
+    if(nm && pnum(c)>0) setProductPrice(nm, String(buyDraft.pack||"").trim(), pnum(c));
     out();
   };
   $("#buyPn").oninput=e=>{ buyDraft.pN=digits(e); if(buyNumbers().promo) buyDraft.freeOv=""; out(); };
@@ -4472,7 +4482,7 @@ function saveBuy(){
   const name=String(buyDraft.name||"").trim();
   const b=buyNumbers();
   if(!name || !(b.got>0)){ toast(S.stockNeedIn); return; }
-  const price=parseFloat(buyDraft.price);
+  const price=pnum(buyDraft.price);
   const pack=String(buyDraft.pack||"").trim();
   moves.push({id:newId(), ts:nowTs(), when:$("#buyWhen").value||nowLocalInput(),
               key:prodKey(name), name, pack,
@@ -4703,7 +4713,7 @@ function renderCountEntry(){
     const p0=known.find(x=>x.key===b.dataset.k);
     if(p0) attachChipRemove(b, p0, renderCountEntry);
   });
-  $("#ceBags").oninput=e=>{ const c=e.target.value.replace(/[^\d.]/g,""); if(c!==e.target.value) e.target.value=c; it.bags=c; refresh(); };
+  $("#ceBags").oninput=e=>{ const c=e.target.value.replace(/[^\d.,]/g,""); if(c!==e.target.value) e.target.value=c; it.bags=c; refresh(); };
   $("#ceOpen").oninput=e=>{ it.open=e.target.value; refresh(); };
   $("#cePack").oninput=e=>{ it.pack=e.target.value; countAppliedKey=prodKey(it.name); refresh(); };
   refresh();
