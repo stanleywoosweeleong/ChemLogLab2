@@ -73,6 +73,13 @@ header{
 
 /* full-screen settings panel */
 .panel{position:fixed;inset:0;z-index:90;background:var(--bg);overflow-y:auto;
+  /* overflow-y:auto alone computes overflow-x to auto as well, which makes the
+     panel a horizontal pan surface — on phones a diagonal thumb-scroll then
+     rubber-bands it left and right even with nothing to scroll to. Lock the
+     axis, and keep overscroll from chaining into the page underneath. The
+     sticky .panel-head is safe: it sticks to this same element, and sticky
+     only breaks when a DIFFERENT ancestor between it and its scroller clips. */
+  overflow-x:hidden; overscroll-behavior:contain;
   padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 24px);
   animation:panelIn .2s ease}
 .panel.on-top{z-index:95}
@@ -1151,7 +1158,7 @@ header{
 
 <script>
 "use strict";
-const APP_VER="v75";
+const APP_VER="v76";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
 const STR={
