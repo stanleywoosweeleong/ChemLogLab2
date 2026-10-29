@@ -1,6 +1,6 @@
 /* ChemLog Lab service worker — network-first so updates always land,
    with an offline cache fallback. Bump CACHE on every deploy. */
-const CACHE = "chemloglab2-v76";
+const CACHE = "chemloglab2-v77";
 
 // Files that make up the app shell (relative to the SW scope).
 const SHELL = [
