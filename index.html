@@ -1179,7 +1179,7 @@ header{
 
 <script>
 "use strict";
-const APP_VER="v78";
+const APP_VER="v79";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
 const STR={
@@ -4687,7 +4687,7 @@ function buyNeeds(){
   const add=(name,pack,need)=>{
     const nm=String(name||"").trim();
     if(!nm || !(need>0)) return;
-    const key=prodKey(nm), b=stockBalance(key);
+    const key=prodKey(nm), b=stockBalance(key, undefined, String(pack||"").trim()||undefined);
     const have=b.based?Math.max(0,b.bal):0;
     out.push({name:nm, pack:String(pack||"").trim()||packOf(key), need,
               have, haveKnown:b.based, short:Math.max(0, need-have)});
@@ -4704,7 +4704,7 @@ function buyNeeds(){
 }
 function buyLoad(n){
   buyDraft.name=n.name; buyDraft.pack=n.pack;
-  const p=chemPriceByName(n.name); buyDraft.price = p!=null?String(p):"";
+  const p=chemPriceByName(n.name, n.pack); buyDraft.price = p!=null?String(p):"";
   // the useful figure is what still has to be bought, not the job total
   buyDraft.need=String(Math.round((n.haveKnown?n.short:n.need)*100)/100);
   buyDraft.buy=""; buyDraft.pN=""; buyDraft.pF=""; buyDraft.freeOv="";
@@ -4717,7 +4717,7 @@ function buyPrefill(){
 }
 function buyLoadSilent(n){
   buyDraft.name=n.name; buyDraft.pack=n.pack;
-  const p=chemPriceByName(n.name); buyDraft.price = p!=null?String(p):"";
+  const p=chemPriceByName(n.name, n.pack); buyDraft.price = p!=null?String(p):"";
   buyDraft.need=String(Math.round((n.haveKnown?n.short:n.need)*100)/100);
 }
 function buyNumbers(){
@@ -4820,7 +4820,7 @@ function renderBuyForm(){
       const p=known.find(x=>x.key===b.dataset.k); if(!p) return;
       buyDraft.name=p.name;
       buyDraft.pack=p.pack||"";                      // this product's own pack
-      const pr=chemPriceByName(p.name);
+      const pr=chemPriceByName(p.name, p.pack);
       buyDraft.price = pr!=null?String(pr):"";       // and its own price
       buyAppliedKey=p.key;
       renderBuyForm();
@@ -4878,12 +4878,12 @@ function renderBuyForm(){
     if(hit && k!==buyAppliedKey){                    // a different product now
       buyAppliedKey=k;
       buyDraft.pack=hit.pack||""; $("#buyPack").value=buyDraft.pack;
-      const pr=chemPriceByName(hit.name);
+      const pr=chemPriceByName(hit.name, hit.pack);
       buyDraft.price = pr!=null?String(pr):""; $("#buyPrice").value=buyDraft.price;
     }
     redrawChips(host, buyDraft.name, k, p=>{
       buyDraft.name=p.name; buyDraft.pack=p.pack||"";
-      const pr2=chemPriceByName(p.name); buyDraft.price = pr2!=null?String(pr2):"";
+      const pr2=chemPriceByName(p.name, p.pack); buyDraft.price = pr2!=null?String(pr2):"";
       buyAppliedKey=p.key;
       renderBuyForm();
       const q=$("#buyPaid"); if(q){ q.focus(); q.select&&q.select(); }
@@ -4912,8 +4912,10 @@ function setProductPrice(name, pack, price){
   const nm=String(name||"").trim(); if(!nm) return;
   const hit=alive(lists.chemProducts).find(x=>prodKey(x.name)===prodKey(nm));
   if(hit){
+    // a price only means something with its pack: RM20 for 2L stored against
+    // the old 1L would quote RM40 for the next 2L bottle
     chemProductSet(hit.id,"price",String(price));
-    if(pack && !String(hit.pack||"").trim()) chemProductSet(hit.id,"pack",pack);
+    if(pack) chemProductSet(hit.id,"pack",pack);
   } else chemProductAdd(nm, pack, String(price));
 }
 function saveBuy(){
@@ -5117,7 +5119,7 @@ function renderCountEntry(){
     const sv=$("#stockSave"); if(sv) sv.disabled=!countEntryFilled();
     const cmp=$("#ceCmp");
     if(!key || !(String(it.bags||"").trim() || String(it.open||"").trim())){ cmp.innerHTML=""; return; }
-    const b=stockBalance(key, when||undefined);
+    const b=stockBalance(key, when||undefined, String(it.pack||"").trim()||undefined);
     const counted=packsLabel(t.packs, it.pack||packOf(key));
     if(!b.based){ cmp.innerHTML=`<span class="cmp-set">${S.stockSetsTo(counted)}</span>`; return; }
     const diff=t.packs-b.bal, pk2=it.pack||packOf(key);
@@ -5171,7 +5173,7 @@ function saveStockCount(){
   // later; we never call it a loss. Only a SHORTFALL is worth a note — finding
   // more than the books is never the thing anyone is worried about, and asking
   // about it just trains people to ignore the prompt.
-  const key=prodKey(it.name), b=stockBalance(key, when);
+  const key=prodKey(it.name), b=stockBalance(key, when, String(it.pack||"").trim()||undefined);
   const t=countItemPacks(it);
   if(b.based && (b.bal-t.packs)>0.5 && !note){
     toast(S.stockNeedNote);
@@ -5401,7 +5403,7 @@ function uncostedChems(r){
   return (r.chems||[]).filter(c=>{
     if(typeof c.cost==="number" && c.cost>0) return false;   // already costed; never overwrite
     if(c.packs==null || !(c.packs>0)) return false;
-    return chemPriceByName(c.name)!=null;
+    return chemPriceByName(c.name, c.pack)!=null;
   });
 }
 function uncostedLogs(){ return aliveLogs().filter(r=>uncostedChems(r).length); }
@@ -5411,7 +5413,7 @@ function backfillCosts(){
   let n=0;
   uncostedLogs().forEach(r=>{
     uncostedChems(r).forEach(c=>{
-      const p=chemPriceByName(c.name);
+      const p=chemPriceByName(c.name, c.pack);
       if(p==null) return;
       c.unitPrice=p; c.priceMode="pack"; c.priceUnit="pack";
       c.cost=Math.round(p*c.packs*100)/100;
