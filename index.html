@@ -1158,7 +1158,7 @@ header{
 
 <script>
 "use strict";
-const APP_VER="v76";
+const APP_VER="v77";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
 const STR={
@@ -1754,7 +1754,7 @@ function closeBooks(before){
   const stamp=`${cut}T00:00`;   // the moment the books are closed
   // the balance AS AT the cut date, not today: anything after the cut is kept,
   // and would otherwise be deducted a second time on top of the opening figure
-  const opening=stockProducts().map(p=>({p, b:stockBalance(p.key, stamp)})).filter(x=>x.b.based);
+  const opening=stockProducts().map(p=>({p, b:stockBalance(p.key, stamp, p.pack)})).filter(x=>x.b.based);
   const note=STR[lang].closeOpeningNote(fmtWhen(stamp));
   // drop the logs, and the movements that predate the cut, then set the opening
   const ids=new Set(doomed.map(r=>r.id));
@@ -2051,12 +2051,15 @@ function chemProductSet(id, field, value){
 }
 function chemProductRemove(id){ const c=lists.chemProducts.find(x=>x.id===id); if(c){ c.deleted=nowTs(); saveLists(); } }
 // find an active saved chemical by name (case-insensitive) -> its price per pack, or null
-function chemPriceByName(name){
+// pass `pack` to get the price of THAT pack size: RM20 for a 1L bottle is RM40
+// for a 2L one. Sizes that can't be compared keep the saved price.
+function chemPriceByName(name, pack){
   const nm=(name||"").trim().toLowerCase(); if(!nm) return null;
   const c=alive(lists.chemProducts).find(x=>(x.name||"").trim().toLowerCase()===nm);
   if(!c) return null;
   const price=pnum(c.price);
-  return price>0 ? price : null;
+  if(!(price>0)) return null;
+  return pack ? price*packsIn(1, pack, c.pack) : price;
 }
 
 // --- spot / small-dose chemicals (priced per ml or per g of product used) ---
@@ -2208,7 +2211,7 @@ function calcChem(c){
     const basis = pnum(c.basis);
     if(!(basis>0)) return {ok:false, needBasis:true};   // require an explicit per-litres value
     // convert the entered amount to base units (g or ml) using the chosen rate unit
-    const unit = c.rateUnit || (family==="mass"?"g":"ml");
+    const unit = String(c.rateUnit || (family==="mass"?"g":"ml")).toLowerCase();
     const toBase = (unit==="kg"||unit==="l") ? 1000 : 1;
     const amountBase = N * toBase;       // amount per `basis` litres, in base units
     base = amountBase * (V/basis);       // scale to the whole tank
@@ -2744,7 +2747,7 @@ function stockLineFor(name, pack, need){
   const S=STR[lang];
   const key=prodKey(name); if(!key) return null;
   if(!usingStock()) return null;
-  const b=stockBalance(key);
+  const b=stockBalance(key, undefined, pack||undefined);
   const el=document.createElement("button"); el.type="button";
   if(!b.based){
     // tracking stock but nothing recorded for THIS product — say so, and offer
@@ -3438,7 +3441,7 @@ function fertSnapshot(){
   const S=STR[lang], T=treeQty(), chems=[];
   state.fert.items.forEach(it=>{
     const res=calcFert(it); if(!res.ok) return;
-    const price=chemPriceByName(it.name);
+    const price=chemPriceByName(it.name, it.pack);
     const cost=(price!=null && res.packsNeed!=null) ? price*res.packsNeed : null;
     chems.push({
       kind:"fert", name:(it.name||"").trim(), pack:(it.pack||"").trim(),
@@ -3476,7 +3479,7 @@ function mixSnapshot(){
       }
     }
     if(cost==null){
-      const pp=chemPriceByName(c.name);
+      const pp=chemPriceByName(c.name, c.pack);
       if(pp!=null && packs!=null){ unitPrice=pp; cost=pp*packs; priceMode="pack"; priceUnit="pack"; }
     }
     chems.push({
@@ -3615,17 +3618,37 @@ function renderLogSheet(){
   $("#logWhen").value=logDraft.when; $("#logWhen").onchange=e=>{ logDraft.when=e.target.value; };
   renderLogTargets(); renderLogWorkers(); renderLogMix();
 }
-// how many trees a selected target covers
-function targetTreeCount(t){
-  const f=(lists.farms||[]).find(x=>x.id===t.fid); if(!f) return 0;
-  if(t.kind==="farm") return farmTotalTrees(f);
-  const z=(f.zones||[]).find(x=>x.id===t.zid); if(!z) return 0;
-  if(t.kind==="zone") return zoneTotalTrees(z);
-  if(t.kind==="row"){ const r=(z.rows||[]).find(x=>x.id===t.rid); return r?rangeCount(r.tFrom,r.tTo):0; }
-  if(t.kind==="trees") return rangeCount(t.from,t.to);
-  return 0;
+// the tree-number spans a target covers, keyed by where the numbering lives
+// (a row, or a zone without rows). Unknown shapes fall back to a bare count.
+function targetSpans(t){
+  const f=(lists.farms||[]).find(x=>x.id===t.fid); if(!f) return [];
+  const span=(key,from,to)=>{ const a=parseInt(from,10), b=parseInt(to,10);
+    return (a>0&&b>0&&b>=a) ? [{key, a, b}] : []; };
+  const zoneSpans=z=> z.hasRows
+    ? alive(z.rows).flatMap(r=>span(f.id+"|"+z.id+"|"+r.id, r.tFrom, r.tTo))
+    : span(f.id+"|"+z.id+"|", z.tFrom, z.tTo);
+  if(t.kind==="farm") return alive(f.zones).flatMap(zoneSpans);
+  const z=(f.zones||[]).find(x=>x.id===t.zid); if(!z) return [];
+  if(t.kind==="zone") return zoneSpans(z);
+  if(t.kind==="row"){ const r=(z.rows||[]).find(x=>x.id===t.rid); return r?span(f.id+"|"+z.id+"|"+r.id, r.tFrom, r.tTo):[]; }
+  if(t.kind==="trees") return span(f.id+"|"+z.id+"|"+(t.rid||""), t.from, t.to);
+  return [];
 }
-function fertTargetTrees(){ return (state.fert.targets||[]).reduce((a,t)=>a+targetTreeCount(t),0); }
+// trees covered by all targets together — a farm plus one of its zones, or the
+// same row picked twice, counts each tree once
+function fertTargetTrees(){
+  const by=new Map();
+  (state.fert.targets||[]).forEach(t=>targetSpans(t).forEach(s=>{
+    if(!by.has(s.key)) by.set(s.key,[]); by.get(s.key).push(s); }));
+  let n=0;
+  by.forEach(list=>{
+    list.sort((x,y)=>x.a-y.a);
+    let a=list[0].a, b=list[0].b;
+    list.slice(1).forEach(s=>{ if(s.a<=b+1) b=Math.max(b,s.b); else { n+=b-a+1; a=s.a; b=s.b; } });
+    n+=b-a+1;
+  });
+  return n;
+}
 function targetLabel(t){
   const S=STR[lang];
   const f=lists.farms.find(x=>x.id===t.fid); if(!f) return "?";
@@ -3755,7 +3778,12 @@ function openTargetPicker(host){
   $("#targetSheet").hidden=false;
 }
 function tpRender(){ if(tpHost && tpHost.render) tpHost.render(); else renderLogTargets(); }
-function addTarget(t){ tpHost.targets.push(t); tpRender(); }
+function addTarget(t){
+  const same=x=>x.kind===t.kind&&x.fid===t.fid&&(x.zid||"")===(t.zid||"")&&(x.rid||"")===(t.rid||"")
+    &&String(x.from||"")===String(t.from||"")&&String(x.to||"")===String(t.to||"");
+  if(!tpHost.targets.some(same)) tpHost.targets.push(t);
+  tpRender();
+}
 function closeTargetSheet(){ $("#targetSheet").hidden=true; }
 function tpFarm(){ return lists.farms.find(x=>x.id===tpNav.fid); }
 function tpZoneOf(zid){ const f=tpFarm(); return f&&(f.zones||[]).find(x=>x.id===zid); }
@@ -3951,6 +3979,32 @@ function tpDoneBar(backFn, backLabel){
 }
 
 
+// Editing a log re-runs the calculator, which would price it at TODAY's
+// catalogue. A log is a record of what was spent then, so each product keeps
+// the price it was saved with; only quantities move. Products the old log had
+// no price for take the current one.
+function keepLogPrices(chems, old){
+  const used=new Set();
+  return chems.map(c=>{
+    const i=(old||[]).findIndex((o,k)=>!used.has(k) && prodKey(o.name)===prodKey(c.name));
+    if(i<0) return c;
+    used.add(i);
+    const o=old[i];
+    if(!(o.unitPrice>0) || !o.priceMode) return c;
+    if(o.priceMode==="dose"){
+      const big=c.dispUnit==="L"||c.dispUnit==="kg";
+      const fam=(c.dispUnit==="g"||c.dispUnit==="kg")?"g":"ml";
+      if(c.disp==null || fam!==o.priceUnit) return c;
+      const amt=c.disp*(big?1000:1);
+      return {...c, unitPrice:o.unitPrice, priceMode:"dose", priceUnit:o.priceUnit, usedAmt:amt, cost:amt*o.unitPrice};
+    }
+    if(o.priceMode==="pack" && c.packs!=null){
+      const unit=o.unitPrice*packsIn(1, c.pack, o.pack);   // same price per kg/L if the pack changed
+      return {...c, unitPrice:unit, priceMode:"pack", priceUnit:"pack", usedAmt:null, cost:unit*c.packs};
+    }
+    return c;
+  });
+}
 $("#logSave").onclick=()=>{
   const S=STR[lang];
   const shake=()=>{ const b=$("#logSave"); b.classList.add("shake"); setTimeout(()=>b.classList.remove("shake"),400); };
@@ -3963,6 +4017,7 @@ $("#logSave").onclick=()=>{
     mode: isFert()?"fert":"spray", tank:snap.tank, trees:snap.trees||"", chems:snap.chems };
   const editing = state.editingLogId ? logs.find(x=>x.id===state.editingLogId && !x.deleted) : null;
   if(editing){
+    rec.chems=keepLogPrices(rec.chems, editing.chems);
     // same id, same ts — the record's identity and creation moment stay; only
     // its content moves, and saveLogs() stamps `up` so the fix consolidates
     Object.assign(editing, rec);
@@ -4051,15 +4106,26 @@ function stockEvents(key){
   const f=key?all.filter(e=>e.key===key):all;
   return f.sort((a,b)=> String(a.when||"").localeCompare(String(b.when||"")) || (a.ts||0)-(b.ts||0));
 }
-// balance as of `upto` (exclusive when given); a COUNT resets it
-function stockBalance(key, upto){
+// packs of `fromPack` expressed as packs of `toPack`. Movements keep the pack
+// size they were recorded in, so ten 1L bottles less one 2L bottle is 8 bottles
+// of 1L, not 9. Unweighed bags or a missing size can't be converted: left as is.
+function packsIn(packs, fromPack, toPack){
+  const a=parsePack(fromPack), b=parsePack(toPack);
+  if(!a || !b || a.family!==b.family || !(a.baseVal>0) || !(b.baseVal>0)) return packs;
+  return packs*a.baseVal/b.baseVal;
+}
+// balance as of `upto` (exclusive when given); a COUNT resets it.
+// Held in packs of `refPack` (default: the product's current pack size).
+function stockBalance(key, upto, refPack){
   let bal=0, lastCount=null, seen=false, based=false, used=0;
+  const ref=refPack||packOf(key);
   stockEvents(key).forEach(e=>{
     if(upto && String(e.when||"") >= String(upto)) return;
     seen=true;
-    if(e.kind==="count"){ bal=e.packs; lastCount=e; based=true; }
-    else if(e.kind==="in"){ bal+=e.packs; based=true; }
-    else if(e.kind==="use"){ bal-=e.packs; used+=e.packs; }
+    const n=packsIn(e.packs, e.pack, ref);
+    if(e.kind==="count"){ bal=n; lastCount=e; based=true; }
+    else if(e.kind==="in"){ bal+=n; based=true; }
+    else if(e.kind==="use"){ bal-=n; used+=n; }
   });
   // `based` = something was actually put in or counted. Without it we know what
   // was used but not what was there, so we must not claim a balance.
@@ -4318,7 +4384,7 @@ $("#countToggle").onclick=()=>{ countOpen=!countOpen; renderStock();
 function renderStockBalances(){
   const S=STR[lang], host=$("#stockBalances"); host.innerHTML="";
   // How much is there. Nothing else — price belongs to buying, not to counting.
-  const known=stockProducts().map(p=>({...p, ...stockBalance(p.key)})).filter(p=>p.based);
+  const known=stockProducts().map(p=>({...p, ...stockBalance(p.key, undefined, p.pack)})).filter(p=>p.based);
   // keep negatives: "over by 2" is worth seeing. Drop only a true zero.
   let all=known.filter(p=>Math.abs(p.bal)>1e-9);
   const allEmpty = known.length>0 && all.length===0;
@@ -4922,7 +4988,7 @@ async function exportAll(){
 function stockSheets(){
   const S=STR[lang];
   const ev=stockEvents();
-  const onHand=stockProducts().map(p=>({...p, ...stockBalance(p.key)}))
+  const onHand=stockProducts().map(p=>({...p, ...stockBalance(p.key, undefined, p.pack)}))
       .filter(p=>p.based && Math.abs(p.bal)>1e-9);   // nothing left is not "on hand"
   if(!ev.length && !onHand.length) return [];
 
