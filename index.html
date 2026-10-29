@@ -1179,7 +1179,7 @@ header{
 
 <script>
 "use strict";
-const APP_VER="v79";
+const APP_VER="v80";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
 const STR={
@@ -3800,8 +3800,12 @@ $("#logBtn").onclick=async()=>{
   if(editing){
     // the sheet opens showing the log's own date, places and people — only
     // what the farmer changes actually changes
+    // fertiliser places are chosen on the home screen (they set the tree count)
+    // and are locked in the sheet, so take them from there, not the old log
+    const src = isFert() ? (state.fert.targets||[]).filter(t=>(lists.farms||[]).some(f=>f.id===t.fid && !f.deleted))
+                         : (editing.targets||[]);
     logDraft={ when:editing.when||nowLocalInput(),
-      targets:(editing.targets||[]).map(t=>({kind:t.kind,fid:t.fid,zid:t.zid||"",rid:t.rid||"",from:t.from||"",to:t.to||""})),
+      targets:src.map(t=>({kind:t.kind,fid:t.fid,zid:t.zid||"",rid:t.rid||"",from:t.from||"",to:t.to||""})),
       workerIds:new Set() };
     (editing.workers||[]).forEach(sw=>{
       const w=alive(lists.workers).find(x=>(x.sid||"")===(sw.sid||"") && (x.name||"")===(sw.name||""));
@@ -4312,7 +4316,9 @@ function usageEvents(){
       const key=prodKey(c.name); if(!key) return;
       const packs=parseFloat(c.packs);
       if(!(packs>0)) return;
-      out.push({id:"L"+r.id+"|"+key, when:r.when, key, name:(c.name||"").trim(),
+      // ts too: a count and a log at the same minute go in the order they were
+      // recorded, the same rule movements follow
+      out.push({id:"L"+r.id+"|"+key, when:r.when, ts:Number(r.ts)||0, key, name:(c.name||"").trim(),
                 pack:c.pack||"", kind:"use", packs, logId:r.id,
                 mode:r.mode==="fert"?"fert":"spray"});
     });
