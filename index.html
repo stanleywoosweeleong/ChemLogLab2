@@ -470,6 +470,18 @@ header{
 .modal{width:100%;max-width:560px;background:var(--panel);border:1px solid var(--line);
   border-radius:18px;padding:16px;box-shadow:0 12px 40px rgba(10,20,14,.3);
   animation:slideUp .2s ease}
+/* first-launch language picker (onboarding) — shows the app's name so the user knows
+   what it is, then three plain buttons. No "choose language" heading: Malaysians know. */
+#langPick{position:fixed;inset:0;z-index:3000;background:var(--bg);display:none;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;
+  padding:calc(24px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom))}
+#langPick.on{display:flex}
+#langPick img{width:88px;height:88px;border-radius:22px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+#langPick .lp-title{font-size:22px;font-weight:800;color:var(--ink);text-align:center;line-height:1.35;margin-bottom:10px}
+#langPick button{width:min(18rem,84vw);min-height:60px;border:2px solid var(--line);border-radius:14px;
+  background:var(--panel);color:var(--ink);font-size:20px;font-weight:700;cursor:pointer;
+  transition:transform .15s,border-color .15s}
+#langPick button:active{transform:scale(.97);border-color:var(--accent)}
 @keyframes slideUp{from{transform:translateY(16px);opacity:.6}to{transform:translateY(0);opacity:1}}
 .modal-h{font-size:15px;font-weight:650;color:var(--ink);margin-bottom:11px}
 .modal-ta{width:100%;min-height:190px;resize:vertical;background:var(--panel2);
@@ -898,7 +910,7 @@ header{
       <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
-      <button class="lang" id="langBtn" aria-label="切换语言 / Switch language"><svg class="lang-globe" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span id="langLabel">中文</span></button>
+      <button class="lang" id="langBtn" aria-label="切换语言 / Switch language / Tukar bahasa"><svg class="lang-globe" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span id="langLabel">中文</span></button>
     </div>
   </div>
 </header>
@@ -1121,6 +1133,15 @@ header{
   </div>
 </div>
 
+<!-- first-launch language picker (onboarding) -->
+<div id="langPick" role="dialog" aria-label="中文 · English · Malay">
+  <img src="icons/icon-192.png" alt="">
+  <div class="lp-title">农场记录管理<br>ChemLog Lab 2</div>
+  <button type="button" onclick="pickLang('zh')">中文</button>
+  <button type="button" onclick="pickLang('en')">English</button>
+  <button type="button" onclick="pickLang('ms')">Malay</button>
+</div>
+
 <!-- reusable confirm dialog (reliable across browsers incl. iOS) -->
 <div class="modal-ov" id="confirmModal" hidden>
   <div class="modal confirm-modal">
@@ -1158,7 +1179,7 @@ header{
 
 <script>
 "use strict";
-const APP_VER="v77";
+const APP_VER="v78";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
 const STR={
@@ -1517,9 +1538,192 @@ const STR={
     xlFertCol:"Fertiliser",xlPacksNeed:"Bags needed",xlGot:"Bags received",
     xlSheetSpray:"Chemicals",xlSheetFert:"Fertiliser",
     exportedCsvMulti:n=>`Exported ${n} CSV files (offline)`,
-    typeSpray:"Spray",typeFert:"Fertilise"}
+    typeSpray:"Spray",typeFert:"Fertilise"},
+  ms:{title:"ChemLog Lab 2",tank:"Isipadu Tangki",
+    guideTitle:"Panduan pengguna",guideIntro:"Aplikasi ini nampak ringkas tapi banyak fungsinya. Ini lawatan ringkas setiap ciri.",
+    guideShareTitle:"Kongsi aplikasi ini",guideShareSub:"Halakan kamera telefon ke kod QR untuk buka aplikasi (kemudian Tambah ke Skrin Utama untuk guna macam aplikasi).",
+    chems:"Bahan kimia",add:"Tambah bahan kimia",recipe:"Ringkasan campuran",share:"WhatsApp",reset:"Set semula",
+    custom:"Sendiri",name:"Nama produk (pilihan)",
+    mPer:"Setiap liter",mPerShort:"/ L",mRatio:"Nisbah",perA:"/",perB:"L",mRate:"Kadar",perWord:"/",
+    ratePhNum:"Masukkan jumlah (nombor)",rateLocked:"Masukkan saiz pek dulu",
+    perTank:"Setiap tangki",tankShort:"Tangki",water:"Air bersih",total:"Isipadu akhir",need:"Perlu",
+    packLab:"Saiz pek",packPh:"setiap beg/botol, cth. 1kg, 500g, 1L, 250ml",
+    packNeed:"Perlu",bagUnit:"beg",bottleUnit:"botol",packMismatch:"⚠ Unit pek tak sepadan dengan bahan kimia (pepejal/cecair)",
+    needPackMsg:"Masukkan saiz pek (pepejal/cecair)",needBasisMsg:"Masukkan untuk berapa liter",
+    fill:"Isi hingga",
+    countTxt:n=>`${n} item${n!==1?"":""}`,
+    shareTitle:"🌱 Resipi Campuran Tangki",
+    previewTitle:"Pratonton mesej (boleh diedit)",cancel:"Batal",sendWA:"WhatsApp",
+    settings:"Tetapan",farms:"Ladang",farmPh:"Masukkan nama ladang",noFarms:"Belum ada ladang",
+    workers:"Pekerja",workerPh:"Masukkan nama pekerja",noWorkers:"Belum ada pekerja",
+    sidPh:"ID Pekerja",namePh:"Nama",importBtn:"Import Excel",
+    ariaAmount:"Jumlah",ariaBasis:"Untuk berapa liter",ariaTreeFrom:"Nombor pokok pertama",ariaTreeTo:"Nombor pokok terakhir",
+    ariaZoneName:"Nama zon",ariaRowName:"Nama barisan",ariaRowGen:"Tambah barisan",ariaZoneGen:"Tambah zon",ariaFarmAdd:"Tambah nama ladang",ariaFarmName:"Nama ladang",
+    importReading:"Membaca…",importEmpty:"Tiada data sah dalam fail",importFail:"Import gagal — semak format fail",
+    importNoNet:"Tak boleh baca Excel tanpa internet (perlu internet untuk muat pembaca). Guna fail CSV, atau cuba lagi bila ada internet.",
+    importDone:(a,s)=>`Diimport ${a}${s?`, ${s} ID berulang dilangkau${s!==1?"":""}`:""}`,
+    importFmt:"Dua lajur: ID Pekerja, Nama (.xlsx / .csv; CSV boleh guna tanpa internet)",
+    trash:"Tong sampah",guideH:"Panduan pengguna",guideOpen:"Buka panduan",guideSecHint:"Cara semuanya berfungsi: bancuhan, membaja, rekod, stor dan kos.",trashEmpty:"Tong sampah kosong",restore:"Pulihkan",purgeAll:"Kosongkan tong sampah",
+    purgeConfirm:"Padam item ini terus? Tak boleh dibatalkan.",purgeAllConfirm:"Padam semua dalam tong sampah terus? Tak boleh dibatalkan.",
+    confirmDelete:"Padam",purgeYes:"Padam terus",goSettings:"Pergi ke Tetapan",
+    trashType:{farm:"Ladang",zone:"Zon",row:"Barisan",worker:"Pekerja",stock:"Stok",tags:"Tag",product:"Produk"},
+    scopeFarm:(z,r)=>`termasuk ${z} zon, ${r} barisan`,scopeZone:r=>`termasuk ${r} barisan`,
+    zonePh:"Masukkan nama zon",noZones:"Belum ada zon (seluruh ladang boleh disembur)",
+    zoneGenPh:"Nama atau julat, cth. A, A-Z, 1-50",zoneGenBtn:"Jana",zoneAddBtn:"Tambah",
+    zoneAddOne:n=>`Tambah "${n}"`,zoneDupOne:n=>`"${n}" sudah ada`,
+    zoneGenPreview:(t,n)=>`Akan buat ${t}, ${n} baru`,
+    zoneGenBad:"Format salah — guna A-Z, AA-ZZ atau 1-50",zoneGenTooBig:"Terlalu banyak (maks 2000)",
+    zonesCount:(n,t)=>`${n} zon${n!==1?"":""} · ${t} pokok`,
+    treesLab:"Pokok",treesCount:n=>`Jumlah ${n}`,treesBad:"tidak sah",
+    hasRows:"Barisan",noRows:"Belum ada barisan",rowPh:"Masukkan nama barisan, cth. C2",rowGenPh:n=>`Nama atau julat, cth. ${n||"C"}1, ${n||"C"}1-${n||"C"}20`,
+    rowsTotal:(r,t)=>`${r} barisan${r!==1?"":""} · ${t} pokok`,
+    zoneSummaryRows:(r,t)=>`${r} barisan${r!==1?"":""} · ${t} pokok`,zoneNoTrees:"pokok belum ditetapkan",
+    lang:"BM",
+    logBtnHome:"Rekod semburan",historyBtnHome:"Rekod",
+    logTitle:"Rekod semburan",logWhen:"Tarikh & masa",logTargets:"Tempat disembur",logWorkers:"Pekerja",logMix:"Campuran (salinan)",
+    editLogA11y:"Edit",editBanner:d=>`Mengedit rekod ${d} — betulkan nombor, kemudian tekan Rekod untuk simpan`,editBannerCancel:"Berhenti edit",
+    logUpdate:"Simpan perubahan",logUpdated:"Dikemas kini — stok dikira semula ikut nombor baru",
+    logTargetsFert:"Tempat dibaja",logNoTargetFert:"Tiada — pilih dengan \u{1F3E1} di skrin utama",histTargetsFert:"Lokasi: ",logAddTarget:"Tambah lokasi",logSave:"Simpan rekod",logSaved:"Disimpan",logNeedTarget:"Tambah sekurang-kurangnya satu lokasi",
+    logNeedWorker:"Pilih sekurang-kurangnya seorang pekerja",logNoWorkerYet:"Belum ada pekerja ditambah",logAddWorkerPrompt:"Perlu sekurang-kurangnya seorang pekerja sebelum merekod. Pergi ke Tetapan untuk tambah sekarang?",
+    logNoTarget:"Belum ada lokasi ditambah",logNoWorkers:"Belum ada pekerja (tambah di Tetapan)",logMixEmpty:"Belum ada bahan kimia dimasukkan — isi di skrin utama",logFertEmpty:"Belum ada baja dimasukkan — isi di skrin utama",logNoFarms:"Tambah ladang di Tetapan dulu",
+    entireFarm:"Seluruh ladang",treeShort:"Pokok ",targetTitle:"Pilih lokasi",
+    zonePrefix:"Zon ",rowPrefix:"Barisan ",
+    crumbAll:"Ladang",tpPickFarm:"Pilih ladang",tpPickLevel:"Pilih skop",
+    lvlFarm:"Seluruh ladang",lvlZones:"Ikut zon ›",lvlRows:"Ikut barisan ›",lvlTrees:"Ikut pokok ›",
+    tpTapZones:"Ketik zon (boleh pilih banyak; ketik lagi untuk buang)",tpTapRows:z=>`${z}: ketik barisan (boleh pilih banyak)`,
+    tpPickZoneForRows:"Pilih zon",tpPickZoneForTrees:"Pilih zon",tpPickRowForTrees:z=>`${z}: pilih barisan`,
+    tpNoZones:"Tiada zon dalam ladang ini",tpNoRows:"Tiada barisan dalam zon ini",tpNoRowZones:"Tiada zon yang ada barisan",
+    tpTreesIn:n=>`${n}: masukkan julat pokok`,tpTreesHint:"Satu pokok: nombor sama, cth. 7; julat cth. 5–12",
+    tpChosen:n=>`${n} dipilih`,tpDone:"Siap",tpBack:"Kembali",tpBackZones:"Kembali ke zon",tpSearchPh:"Cari…",
+    wkSearchPh:"Cari ID atau nama pekerja…",wkNoneSelected:"Tiada pekerja dipilih",wkNoMatch:"Tiada pekerja sepadan",wkMore:n=>`${n} lagi — perhalusi carian`,
+    historyTitle:"Rekod penggunaan",historyEmpty:"Belum ada rekod",exportExcel:"Eksport Excel",exportedCsv:"CSV dieksport",
+    histTargets:"Tempat: ",histWorkers:"Pekerja: ",histMix:"Campuran: ",histNoWorker:"(tiada)",histDelConfirm:"Padam rekod ini?",
+    xlWhen:"Tarikh/Masa",xlFarm:"Ladang",xlZone:"Zon",xlRow:"Barisan",xlTrees:"Pokok",xlWorkers:"Pekerja",xlChem:"Bahan kimia",xlPack:"Pek",xlAmount:"Jumlah",xlPacks:"Bil. pek",xlTank:"Tangki",
+    costReport:"Laporan kos",
+    cpPackPh:"Pek",cpPricePh:"Harga",cpFmt:"Harga boleh diubah bila-bila masa (RM setiap beg atau botol).",cpEmpty:"Belum ada harga bahan kimia",
+    cdEmpty:"Belum ada bahan kimia dos setempat",costAdjustLabel:"Pelarasan manual",costAdjustWhy:"Sebab",costAdjustSaved:t=>`Direkod: ${t}`,costAdjustWhyPh:"Kenapa? cth. diskaun promo, caj penghantaran",
+    costTitle:"Kos penggunaan",costNLogs:n=>`${n} rekod${n>1?"":""}`,costWhatThisIs:"Ini nilai yang digunakan, bukan wang yang dibelanjakan. Wang tunai yang dibelanjakan ada di helaian Bulanan dalam eksport.",costSubtotal:"Subjumlah",costAfterAdjust:"Selepas pelarasan",
+    costUncosted:n=>`${n} rekod${n>1?"":""} disimpan sebelum produk ada harga, jadi ${n>1?"semuanya":"ia"} tiada kos.`,
+    costUncostedFix:"Letak harga sekarang",
+    costBackfillConfirm:"Kira kos rekod itu guna harga hari ini? Rekod yang sudah ada kos tidak diubah.",
+    costBackfilled:n=>`${n} item${n>1?"":""} diberi harga`,
+    costVsSpend:(a,b)=>`Ini nilai yang digunakan, bukan yang dibelanjakan. ${a?`${a} pembelian${a>1?"":""} tiada harga direkod. `:""}${b?`${b} lot${b>1?"":""} stok masuk melalui kiraan, bukan pembelian. `:""}Kedua-duanya boleh buat kos penggunaan melebihi perbelanjaan yang direkod.`,costEmpty:"Belum ada rekod kos — rekod muncul di sini bila produk ada harga dan saiz pek.",
+    costGrand:"Jumlah",costMonthTotal:"Jumlah bulan",costTrash:"Rekod dipadam",costDelConfirm:"Padam rekod kos ini? Boleh dipulihkan di bawah.",
+    xlMonth:"Bulan",costCol:"Kos (RM)",costUnitPrice:"Harga seunit (RM/pek)",
+    modeSpray:"Sembur",modeFert:"Baja",
+    fertTreesLab:"Pokok untuk Dibaja",treeUnit:"pokok",bagWord:"pek",bottleWord:"botol",
+    lpToFert:"Tukar: baja pepejal 🌾",lpToSpray:"Tukar: campuran semburan 💧",
+    ferts:"Baja",fertName:"Nama produk (pilihan)",
+    fertPackLab:"Saiz pek",fertPackPh:"berat setiap beg, cth. 50kg, 25kg",
+    fertRateLab:"Kadar setiap pokok",perTree:"/ pokok",unitBag:"beg",unitScoop:"senduk",perWordF:"/",treesWord:"pokok",
+    byBagHint:"Dikira ikut beg — berat pek tidak perlu",
+    scoopLab:"Berat 1 senduk",scoopPh:"cth. 250g",spbUnit:"senduk/beg",
+    needScoopCal:"Timbang satu senduk dulu",
+    scoopWeight:w=>`≈ ${w}`,
+    needTreesMsg:"Masukkan berapa pokok",needSolidPack:"Masukkan saiz pek (kg) dulu",
+    notSolid:"⚠ Baja pepejal perlu kg / g / t",
+    fertTotal:"Jumlah perlu",fertRecipe:"Ringkasan baja",
+    buyH:"Belian & promo",buyOpen:"Tunjuk",buyShut:"Sorok",
+    buyPay:"Bayar untuk",buyPromo:"Promo",buyFree:"Percuma",buyGot:"Anda dapat",buyCovers:"Cukup untuk",
+    promoBuy:"Beli",promoGet:"percuma",buyAuto:"auto",buyResetFree:"kembali ke auto",
+    leftFullOpen:(n,o)=>`\u{1F516} ${n} beg belum buka${n!==1?"":""} + 1 dibuka (tinggal ${o})`,
+    stockTitle:"Stok",stockBtn:"Stok",storeTitle:"Stor",
+    tabOnhand:"Baki",tabBuy:"Beli",
+    buyPrice:"Harga",perPack:"/ pek",perEach:u=>`/ ${u}`,buyTotal:"Jumlah",buyEffective:"Bersamaan",
+    buyLastPaid:p=>`terakhir ${p}`,clearField:"Kosongkan",
+    pricePackWarn:"Tambah saiz pek (cth. 1L, 25kg) supaya kos boleh dikira",
+    chipRemoveHint:"Tekan lama untuk buang dari senarai",
+    chipRemoveConfirm:n=>`Buang “${n}” dari senarai produk? Ia tiada stok atau sejarah, dan boleh dipulihkan dari tong sampah.`,
+    sideSprayH:"Bahan kimia",sideFertH:"Baja",sideFoliarH:"Baja daun",
+    sideHerbH:"Racun rumpai",sideInsectH:"Racun serangga",sideFungH:"Racun kulat",sideAdjH:"Adjuvan",sideOtherH:"Lain-lain",
+    grpLabel:"Tag",tagClear:"buang",tagNew:"＋ baru",tagPh:"cth. Racun siput",tagSave:"Tetap",
+    chipMore:n=>`+${n} lagi — taip untuk cari`,balSearch:"Cari produk",balNoHits:"Tiada produk sepadan",chipMoreHits:n=>`+${n} lagi padanan`,stockNewItem:"Item baru",
+    packNeedUnit:"Tambah unit — cth. 50kg atau 1L",packMismatch:"Guna unit sama dengan saiz pek",sideFert:"baja",sideSpray:"sembur",
+    buyHint:"Kira belian di sini — berapa pek, apa yang promo beri — dan bila simpan, ia masuk ke stok.",
+    buyNeedLab:"perlu beli",buySave:"Simpan ke stok",buyWhen:"Tarikh beli",
+    buyNeedsH:"Keperluan skrin utama",
+    buyNeedRow:(q,u)=>`beli ${q} ${u}`,buyHaveEnough:"stok cukup",
+    buyRowSub:(need,have)=>`perlu ${need} · stok ${have}`,buyRowNeedOnly:n=>`perlu ${n}`,
+    countShow:"\u{1F516} Kira stok",countHide:"\u{1F516} Sorok kiraan",buyWithFree:(p,f)=>`bayar ${p}, ${f} percuma`,
+    buyToStock:"Masukkan belian ini ke stok",buyFromLog:"dengan rekod",
+    fsHave:q=>`Stok: ${q}`,fsNone:"Tiada stok direkod",fsAdd:"tambah ›",fsNeed:n=>`kerja ini perlu ${n}`,
+    stockSecHint:"Stok masuk, penggunaan ditolak automatik, dan kiraan fizikal — untuk baja dan bahan kimia.",stockNoBal:"Belum ada stok direkod",stockAllZero:"Stor sudah kosong (produk masih boleh dipilih di Beli dan Kira)",
+    stockInHint:"Rekod apa yang dibeli; setiap rekod sembur atau baja akan tolak bahagiannya secara automatik.",
+    stockInSave:"Simpan",stockInSaved:"Ditambah ke stok",stockNeedIn:"Masukkan nama dan berapa pek",
+    stockNotePh:"cth. bagi lebih sikit pada pokok muda",
+    stockNeedNote:"Beza agak besar — tulis sedikit dalam nota",
+    stockSetsTo:q=>`Rekod pertama — stok ditetapkan ${q}`,
+    stockExpected:q=>`Dalam buku: ${q}`,stockMatch:"sepadan ✓",
+    stockMore:q=>`${q} lebih daripada buku`,stockLess:q=>`${q} kurang daripada buku`,
+    stockUsageOnly:q=>`guna ${q}, belum ada stok masuk`,stockShort:q=>`terlebih guna ${q}`,
+    mvKind:{in:"Masuk",use:"Guna",count:"Kiraan stok"},mvKindCol:"Jenis",xlQty:"Kuantiti (pek/botol)",
+    storageFail:"⚠ Tak dapat simpan — data terkini mungkin hilang. Semak storan telefon, atau matikan pelayaran peribadi.",
+    backupH:"Sandaran",backupSave:"Simpan sandaran",backupRestore:"Pulihkan dari sandaran",
+    backupHint:"Salinan penuh untuk aplikasi (.json): ladang, zon, barisan, pekerja, produk dan harga, tag, rekod dan stok — semuanya, dan boleh dibaca semula (eksport Excel tidak boleh). Simpan satu sebelum tukar telefon atau kosongkan rekod tahunan. Pemulihan menggabungkan data: apa yang tiada di telefon ini ditambah, dan jika kedua-dua ada rekod yang sama, suntingan terkini diguna — jadi pembetulan atau pemadaman di telefon pekerja turut dibawa. Hanya nama telefon ini sendiri dikecualikan, dan sentiasa dikekalkan.",
+    backupSaved:"Sandaran disimpan",
+    backupNever:"Sandaran terakhir: tiada — hanya telefon ini yang simpan rekod ini",
+    backupAgo:(d,n)=>`Sandaran terakhir: ${d} (${n===0?"hari ini":n+(n===1?" hari":" hari")+" lalu"})`,
+    backupStaleTail:" — sudah agak lama; eksport yang baru",
+    backupCopyTitle:"Kandungan sandaran",backupCopyBtn:"Salin",backupCopied:"Disalin",
+    backupSelectAll:"Dipilih — tekan lama untuk salin",
+    backupCopyHint:f=>`Muat turun disekat di sini. Salin semua di bawah dan simpan sebagai fail teks bernama ${f}; anda boleh pulihkan dari fail itu nanti.`,backupBad:"Itu bukan sandaran dari aplikasi ini",
+    backupDone:r=>{
+      const n=(v,one,many)=>`${v} ${v===1?one:many}`;
+      const bits=[];
+      if(r.logs)     bits.push(n(r.logs,"rekod","rekod"));
+      if(r.moves)    bits.push(n(r.moves,"pergerakan stok","pergerakan stok"));
+      if(r.farms)    bits.push(n(r.farms,"ladang","ladang"));
+      if(r.workers)  bits.push(n(r.workers,"pekerja","pekerja"));
+      if(r.products) bits.push(n(r.products,"produk","produk"));
+      const tail = r.upd ? ` (${r.upd} diganti dengan versi lebih baru)`
+                         : " (data sedia ada tidak diubah)";
+      return bits.length ? `Dipulihkan ${bits.join(", ")}${tail}`
+                         : "Sandaran itu tiada data baru untuk peranti ini";
+    },
+    closeH:"Akhir tahun (kosongkan rekod lama)",
+    closeHint:"Kosongkan rekod lama selepas tahun kewangan. Dua fail disimpan dulu — buku kerja Excel untuk dibaca, dan chemlog-archive_… .json yang boleh dibaca semula oleh aplikasi — kemudian rekod sebelum tarikh itu dibuang. Baki stok dibawa ke hadapan sebagai kiraan stok, jadi stok tidak berubah walaupun rekod dibuang. Pulihkan dari arkib jika perlukan rekod lama lagi.",
+    closeBefore:"Kosongkan rekod sebelum",closePreview:n=>`${n} rekod${n===1?"":""} akan dikosongkan`,
+    closeBtn:"Eksport, kemudian kosongkan",closeExportFirst:"Eksport dulu",closeDoIt:"Kosongkan",
+    closeConfirm1:n=>`${n} rekod${n===1?"":""} akan dikosongkan. Dua fail disimpan dulu: buku kerja Excel untuk dibaca, dan arkib .json yang boleh dibaca semula oleh aplikasi. Tiada apa dipadam sehingga kedua-duanya siap.`,
+    closeConfirm2:n=>`Kedua-dua fail disimpan. Padam ${n} rekod${n===1?"":""} itu sekarang? Ia tidak masuk tong sampah — untuk dapatkan semula nanti, pulihkan fail chemlog-archive_… .json.`,
+    closeDone:(l,p)=>`${l} rekod${l===1?"":""} dikosongkan; ${p} produk${p===1?"":""} dibawa ke hadapan`,
+    closeOpeningNote:t=>`Dibawa ke hadapan pada akhir tahun (${t})`,
+    deviceH:"Telefon ini",deviceHint:"Namakan telefon ini (cth. Telefon Ah Ming). Setiap eksport tunjuk dari telefon mana ia datang, jadi fail yang banyak mudah dikenal pasti.",
+    devicePh:"cth. Telefon Ah Ming",deviceUnnamed:"(tiada nama)",
+    xlAbout:"Maklumat fail",xlField:"Perkara",xlValue:"Nilai",xlAppVer:"Versi aplikasi",xlFrom:"Dieksport dari",xlExported:"Dieksport pada",xlLogId:"ID Rekod",xlUnitCost:"Kos setiap pek",xlNoPrice:"Belian tanpa harga",xlCounted:"Stok masuk ikut kiraan",xlMonthly:"Bulanan",xlApplied:"Kos penggunaan",xlSpent:"Dibeli (tunai)",xlOnHand:"Baki",xlSheetIn:"Belian",xlSheetUsed:"Guna",xlSheetCount:"Kiraan stok",
+    xlTag:"Tag",xlDate:"Tarikh",xlName:"Produk",xlAmount:"Jumlah",xlUnit:"Unit",
+    stockHint:"Kira apa yang betul-betul ada dalam stor — baja dan bahan kimia. Kiraan akan menggantikan angka semasa. Pek belum buka mudah dikira; timbang atau anggar baki dalam pek yang sudah dibuka, atau biarkan kosong.",
+    stockWhen:"Tarikh kiraan",stockItemsH:"Rekod satu produk",
+    stockName:"Nama produk (baja atau bahan kimia)",stockSealed:"belum buka",stockOpened:"dibuka, baki",
+    stockOpenPh:"cth. 10kg / 300ml",stockPackPh:"cth. 50kg / 1L",
+    stockNote:"Nota",stockSave:"Simpan produk ini",
+    stockEmpty:"Belum ada kiraan stok",stockNeedItem:"Tambah sekurang-kurangnya satu baja dengan kuantiti",
+    stockSaved:"Kiraan disimpan \u{1F516}",stockDelConfirm:"Padam kiraan stok ini?",
+    stockTotalCol:"Jumlah",
+    leftFullOnly:n=>`\u{1F516} ${n} beg belum buka${n!==1?"":""}, tiada yang dibuka`,
+    buyNeed:"Perlu",
+    buyEnough:x=>`✓ Cukup — lebih ${x}`,
+    buyShort:x=>`⚠ Kurang ${x}`,
+    buyCoversTxt:(n,extra)=>`${n} pokok${extra>0?` (+${extra})`:""}`,
+    buyNudge:(more,pay,get)=>`💡 Tambah ${more} beg lagi${more!==1?"":""} untuk dapat promo: bayar ${pay}, terima ${get}.`,
+    fertShareTitle:"🌾 Pelan baja",
+
+
+
+
+    logFertTitle:"Rekod membaja",logFertMix:"Baja (salinan)",logFertBtn:"Rekod membaja",
+    histTreesK:"Pokok: ",histFertK:"Baja: ",
+    xlType:"Jenis",xlTreeQty:"Pokok",xlPerTree:"Setiap pokok",xlPaid:"Beg dibayar",xlFree:"Beg percuma",
+    xlFertCol:"Baja",xlPacksNeed:"Beg diperlukan",xlGot:"Beg diterima",
+    xlSheetSpray:"Bahan kimia",xlSheetFert:"Baja",
+    exportedCsvMulti:n=>`${n} fail CSV dieksport (luar talian)`,
+    typeSpray:"Sembur",typeFert:"Baja"}
 };
-let lang = localStorage.getItem("tm_lang")||"zh";
+const LANG_CYCLE=["zh","en","ms"];             // 中文 → EN → BM
+// pick the text for the current language; Malay falls back to English if missing
+function L3(zh,en,ms){ return lang==="zh"?zh:(lang==="ms"&&ms!=null?ms:en); }
+const LANG_SAVED=localStorage.getItem("tm_lang");
+let lang = LANG_CYCLE.includes(LANG_SAVED) ? LANG_SAVED : "zh";
 
 let state = load();
 // guard: state must be a plain object with a chems array
@@ -2398,7 +2602,7 @@ function renderSummary(){
     const res=calcChem(c);
     if(!res.ok) return;
     any=true;
-    const nm = c.name?.trim() || (lang==="zh"?"未命名药剂":"Unnamed");
+    const nm = c.name?.trim() || L3("未命名药剂","Unnamed","Tanpa nama");
     const row=document.createElement("div"); row.className="srow";
     row.innerHTML=`<span>${esc(nm)}</span><span class="q">${fmt(res.disp)} <small style="color:var(--dim);font-weight:400">${res.dispUnit}</small></span>`;
     host.appendChild(row);
@@ -2410,12 +2614,12 @@ function renderSummary(){
   }
   if(!any && V){
     const e=document.createElement("div"); e.className="srow";
-    e.innerHTML=`<span style="color:var(--dim2)">${lang==="zh"?"输入药剂用量…":"Enter chemical rates…"}</span><span></span>`;
+    e.innerHTML=`<span style="color:var(--dim2)">${L3("输入药剂用量…","Enter chemical rates…","Masukkan kadar bahan kimia…")}</span><span></span>`;
     host.appendChild(e);
   }
   if(!V){
     const e=document.createElement("div"); e.className="srow";
-    e.innerHTML=`<span style="color:var(--dim)">${lang==="zh"?"先在上方填写「水箱容量」，即可开始配药 👆":"Start by filling in the tank volume above 👆"}</span><span></span>`;
+    e.innerHTML=`<span style="color:var(--dim)">${L3("先在上方填写「水箱容量」，即可开始配药 👆","Start by filling in the tank volume above 👆","Mula dengan isi isipadu tangki di atas 👆")}</span><span></span>`;
     host.appendChild(e);
   }
 }
@@ -2681,7 +2885,7 @@ function renderFertSummary(){
   state.fert.items.forEach(it=>{
     const res=calcFert(it); if(!res.ok) return;
     any=true;
-    const nm=it.name?.trim() || (lang==="zh"?"\u672a\u547d\u540d\u80a5\u6599":"Unnamed");
+    const nm=it.name?.trim() || L3("\u672a\u547d\u540d\u80a5\u6599","Unnamed","Tanpa nama");
     const row=document.createElement("div"); row.className="srow";
     row.innerHTML=`<span>${esc(nm)}</span><span class="q">${fmt(res.disp)} <small style="color:var(--dim);font-weight:400">${res.dispUnit}</small></span>`;
     host.appendChild(row);
@@ -2693,12 +2897,12 @@ function renderFertSummary(){
   }
   if(!any && T){
     const e=document.createElement("div"); e.className="srow";
-    e.innerHTML=`<span style="color:var(--dim2)">${lang==="zh"?"\u8f93\u5165\u6bcf\u68f5\u7528\u91cf\u2026":"Enter the rate per tree\u2026"}</span><span></span>`;
+    e.innerHTML=`<span style="color:var(--dim2)">${L3("\u8f93\u5165\u6bcf\u68f5\u7528\u91cf\u2026","Enter the rate per tree\u2026","Masukkan kadar setiap pokok\u2026")}</span><span></span>`;
     host.appendChild(e);
   }
   if(!T){
     const e=document.createElement("div"); e.className="srow";
-    e.innerHTML=`<span style="color:var(--dim)">${lang==="zh"?"\u5148\u5728\u4e0a\u65b9\u586b\u5199\u300c\u65bd\u80a5\u6811\u6570\u300d\u{1F446}":"Start by entering how many trees above \u{1F446}"}</span><span></span>`;
+    e.innerHTML=`<span style="color:var(--dim)">${L3("\u5148\u5728\u4e0a\u65b9\u586b\u5199\u300c\u65bd\u80a5\u6811\u6570\u300d\u{1F446}","Start by entering how many trees above \u{1F446}","Mula dengan isi bilangan pokok di atas \u{1F446}")}</span><span></span>`;
     host.appendChild(e);
   }
 }
@@ -2720,7 +2924,7 @@ function buildFertShareText(){
   state.fert.items.forEach(it=>{
     const res=calcFert(it); if(!res.ok) return;
     any=true;
-    const nm=it.name?.trim() || (lang==="zh"?"\u672a\u547d\u540d\u80a5\u6599":"Unnamed");
+    const nm=it.name?.trim() || L3("\u672a\u547d\u540d\u80a5\u6599","Unnamed","Tanpa nama");
     lines.push(`\u2022 ${nm}: ${fertRateLabel(it)} \u2192 ${fmt(res.disp)} ${res.dispUnit}`);
     if(res.byScoop){
       lines.push(`  = ${fmt(res.massDisp)} ${res.massUnit}`);
@@ -2728,12 +2932,12 @@ function buildFertShareText(){
     }
     else if(!res.byBag) lines.push(`  ${S.buyNeed} ${fmt(res.packsNeed)} ${S.bagWord} (${it.pack})`);
   });
-  if(!any) lines.push(lang==="zh"?"\uff08\u672a\u8f93\u5165\u80a5\u6599\uff09":"(no fertiliser)");
+  if(!any) lines.push(L3("\uff08\u672a\u8f93\u5165\u80a5\u6599\uff09","(no fertiliser)","(tiada baja)"));
   lines.push("");
   lines.push(`${S.fertTreesLab}: ${T?fmt(T)+" "+S.treeUnit:"\u2014"}`);
   (state.fert.targets||[]).forEach(t=>lines.push(`  \u00b7 ${targetLabel(t)}`));
   lines.push("");
-  lines.push(lang==="zh"?"\u7528\u91cf\u4ec5\u4f9b\u53c2\u8003\u3002":"Reference only.");
+  lines.push(L3("\u7528\u91cf\u4ec5\u4f9b\u53c2\u8003\u3002","Reference only.","Untuk rujukan sahaja."));
   return lines.join("\n");
 }
 
@@ -2842,7 +3046,7 @@ $("#treePick").onclick=()=>openTargetPicker(fertTargetHost);
 // the row he is about to do.
 function renderText(){
   const S=STR[lang];
-  document.documentElement.lang = lang==="zh"?"zh":"en";
+  document.documentElement.lang = lang;
   $("#t-title").textContent=S.title;
   $("#t-chems").textContent=S.chems;
   $("#t-add").textContent=S.add;
@@ -2890,7 +3094,11 @@ window.addEventListener("storage", e=>{
   if(!$("#settingsPanel").hidden) renderSettings();
 });
 $("#langBtn").onclick=()=>{
-  lang=lang==="zh"?"en":"zh"; store("tm_lang",lang);
+  setLang(LANG_CYCLE[(LANG_CYCLE.indexOf(lang)+1)%LANG_CYCLE.length]);
+};
+function setLang(l){
+  if(!LANG_CYCLE.includes(l)) return;
+  lang=l; store("tm_lang",lang);
   renderAll();
   // panels already on screen must follow, not wait to be reopened
   if(!$("#storePanel").hidden) renderStock();
@@ -3380,7 +3588,7 @@ function buildShareText(){
   state.chems.forEach(c=>{
     const res=calcChem(c);
     if(!res.ok) return; any=true;
-    const nm = c.name?.trim() || (lang==="zh"?"未命名药剂":"Unnamed");
+    const nm = c.name?.trim() || L3("未命名药剂","Unnamed","Tanpa nama");
     let line = `• ${nm}: ${fmt(res.disp)} ${res.dispUnit}`;
     if(res.packs!=null && !res.packMismatch){
       const unit = res.family==="mass" ? S.bagUnit : S.bottleUnit;
@@ -3388,11 +3596,11 @@ function buildShareText(){
     }
     lines.push(line);
   });
-  if(!any) lines.push(lang==="zh"?"（未输入药剂）":"(no chemicals)");
+  if(!any) lines.push(L3("（未输入药剂）","(no chemicals)","(tiada bahan kimia)"));
   lines.push("");
   lines.push(`${S.water}: ${vStr}`);
   lines.push("");
-  lines.push(lang==="zh"?"用量仅供参考，请以标签为准。":"Reference only — always follow the label.");
+  lines.push(L3("用量仅供参考，请以标签为准。","Reference only — always follow the label.","Untuk rujukan sahaja — sentiasa ikut label."));
   return lines.join("\n");
 }
 
@@ -3427,6 +3635,16 @@ function openSharePreview(text){
 }
 
 renderAll();
+
+/* ---------- onboarding: pick a language on first launch ----------
+   Shown only when no language has ever been saved on this device; the choice
+   persists, so later launches open straight into the app in that language. */
+function pickLang(l){
+  if(!LANG_CYCLE.includes(l)) return;
+  document.getElementById("langPick").classList.remove("on");
+  setLang(l);
+}
+if(!LANG_CYCLE.includes(LANG_SAVED)) document.getElementById("langPick").classList.add("on");
 
 // ===================== LOGGING (spray events) =====================
 let logDraft = null; // {when, targets:[], workerIds:Set}
@@ -3747,12 +3965,12 @@ function renderLogMix(){
   let html;
   if(isFert()){
     html=`<div class="mix-tank">${S.fertTreesLab}: ${snap.trees?fmt(snap.trees)+" "+S.treeUnit:"—"}</div>`;
-    snap.chems.forEach(c=>{ const nm=c.name||(lang==="zh"?"未命名":"Unnamed");
+    snap.chems.forEach(c=>{ const nm=c.name||L3("未命名","Unnamed","Tanpa nama");
       const buy=c.paid!=null?` · ${S.buyPay} ${c.paid}${c.free?` +${c.free} ${S.buyFree}`:""}`:"";
       html+=`<div class="mix-line">• ${esc(nm)}: ${fmt(c.disp)} ${c.dispUnit} (${fmt(c.packs)} ${c.packUnit})${buy}</div>`; });
   } else {
     html=`<div class="mix-tank">${S.tankShort}: ${snap.tank?fmt(snap.tank)+" L":"—"}</div>`;
-    snap.chems.forEach(c=>{ const nm=c.name||(lang==="zh"?"未命名":"Unnamed"); const packs=c.packs!=null?` (${fmt(c.packs)} ${c.packUnit})`:"";
+    snap.chems.forEach(c=>{ const nm=c.name||L3("未命名","Unnamed","Tanpa nama"); const packs=c.packs!=null?` (${fmt(c.packs)} ${c.packUnit})`:"";
       html+=`<div class="mix-line">• ${esc(nm)}: ${fmt(c.disp)} ${c.dispUnit}${packs}</div>`; });
   }
   host.innerHTML=html;
@@ -4301,7 +4519,7 @@ function packOf(key){ const p=stockProducts().find(x=>x.key===key); return p?p.p
 function unitWord(n, pack){
   const pk=pack?parsePack(pack):null;
   const vol=pk && pk.family==="vol";
-  if(lang==="zh") return vol ? STR.zh.bottleWord : STR.zh.bagWord;
+  if(lang!=="en") return vol ? STR[lang].bottleWord : STR[lang].bagWord;   // no plural form
   return vol ? (Math.abs(n)===1?"bottle":"bottles") : (Math.abs(n)===1?"pack":"packs");
 }
 function packWord(n){ return unitWord(n, ""); }
@@ -5224,9 +5442,9 @@ function logMonthKey(r){
 }
 function monthLabel(key){
   const [y,m]=key.split("-"); if(!m) return key;
-  const names = lang==="zh"
-    ? ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"]
-    : ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const names = L3(["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"],
+    ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+    ["Jan","Feb","Mac","Apr","Mei","Jun","Jul","Ogo","Sep","Okt","Nov","Dis"]);
   const mi=parseInt(m,10)-1;
   return lang==="zh" ? `${y}年${names[mi]||m}` : `${names[mi]||m} ${y}`;
 }
@@ -5320,7 +5538,7 @@ function guideSections(){
       "记录可删除／恢复／永久删除，也可导出 Excel。",
     ]},
     {icon:"📴", title:"10. 离线、备份与年结", body:[
-      "离线可用（园里没信号也不怕），可「添加到主屏幕」当 App 用。右上角地球按钮切换中文／English。",
+      "离线可用（园里没信号也不怕），可「添加到主屏幕」当 App 用。右上角地球按钮切换中文／English／马来文。",
       "备份（设置 → 备份）：导出一份 .json，里面是全部资料——农场、区域、行、工人、产品与价格、标签、施用记录与库存。换手机、清档之前先存一份。",
       "恢复是合并：本机没有的会补上；两边都有的，以最后修改的那一份为准，所以工人改正过或删掉的记录，汇总时会跟着更新。同一个文件导两次不会重复。只有「这台手机」的名字是例外，永远保留本机自己的。恢复完会告诉你补进了多少笔，其中多少笔被较新的版本覆盖。",
       "汇总别人的记录时：导出的每一行都带「记录编号」，同一份文件重复发来，一看编号就知道是同一笔，不会算成两笔。在「设置 → 这台手机」给手机起个名，导出的文件名与「文件信息」页都会写明是哪一台导的，收表的人一眼就分得清。",
@@ -5413,7 +5631,90 @@ function guideSections(){
       "This guide lives in Settings \u2192 User guide, whenever you want it again.",
     ]}
   ];
-  return lang==="zh"?zh:en;
+  const ms=[
+    {icon:"💧", title:"1. Kalkulator campuran tangki (laman utama)", body:[
+      "Masukkan Isipadu tangki dahulu (cth. 1000 L).",
+      "Dalam kad bahan kimia, taip nama dan saiz pek (cth. 1kg atau 1L), kemudian pilih Kadar atau Nisbah.",
+      "Kadar: jumlah bagi setiap sekian liter (cth. 40 g bagi 20 L). Nisbah: 1 : N (cth. 1 : 500).",
+      "Terus ditunjukkan berapa banyak yang diperlukan untuk satu tangki penuh, dan berapa beg/botol.",
+      "Tekan ＋ Tambah bahan kimia untuk campur beberapa produk dalam satu tangki (biasa bila pekerja tak cukup)."
+    ]},
+    {icon:"📋", title:"2. Ringkasan campuran & kongsi", body:[
+      "Ringkasan campuran menyenaraikan jumlah setiap bahan kimia, dengan air bersih di baris terakhir.",
+      "Kongsi ke WhatsApp dengan satu tekan — senang untuk hantar kepada pekerja anda."
+    ]},
+    {icon:"🌾", title:"3. Mod baja pepejal", body:[
+      "Tekan lencana di bahagian kanan atas laman utama untuk tukar antara campuran semburan dan baja pepejal (butir, organik, kompos). Lencana itu sentiasa menunjukkan nama mod yang akan dibuka.",
+      "Isipadu tangki bertukar menjadi Pokok untuk dibaja. 🏡 membuka pemilih lokasi yang sama seperti semasa menyembur — seluruh ladang, ikut zon, ikut barisan atau ikut nombor pokok — dan anda boleh tanda beberapa barisan sekali gus. Bilangan pokok dikira sendiri dan laman utama hanya menunjukkan nombor itu. Tekan 🏡 sekali lagi untuk semak atau tukar pilihan; buang semua tanda dan bilangan jadi kosong. Anda juga boleh abaikan semua ini dan terus taip satu nombor, guna aplikasi sebagai kalkulator sahaja.",
+      "Masukkan saiz pek (20kg, 25kg, 50kg — ada butang pintas) dan kadar bagi setiap pokok (kg atau g), dan aplikasi akan kira jumlah yang diperlukan serta berapa beg. Satu baja bagi satu rekod; untuk baja kedua, buat sahaja rekod lain.",
+      "Kotak 》/ n pokok《 selepas kadar ialah bilangan pokok yang dapat satu sukatan — cth. 50 kg / 10 pokok. Biarkan kosong untuk satu pokok.",
+      "Ada produk yang dijual dan ditabur ikut beg, tanpa berat. Tukar unit kepada beg (包): ruang saiz pek akan disembunyikan dan semua dikira dalam beg, cth. 1 beg / 3 pokok.",
+      "Sukatan ikut sudu: tukar unit kepada sudu (勺) dan masukkan cth. 2 sudu / pokok. Timbang sudu anda sekali dengan penimbang kecil (cth. 250g) dan masukkan berat itu — aplikasi akan beri jumlah berat. Tambah saiz pek dan ia kira berapa beg perlu dibeli (50kg ÷ 250g = 200 sudu satu beg, ditunjukkan supaya anda boleh semak).",
+      "Bila mahu jimat baja, masukkan sesuatu seperti 1 sudu / 2 pokok. Jumlah dan beg dikira dengan cara yang sama, dan baki ditunjukkan dalam sudu supaya senang dibahagikan.",
+      "Di bawah Beli & promosi, aplikasi juga tunjuk berapa beg yang masih belum dibuka dan beg mana yang sudah dibuka, berserta bakinya — yang diikat dengan tali pengikat.",
+      "Beli & promosi: bilangan beg yang perlu dibayar ialah keperluan yang dibundarkan ke atas, dan anda boleh mengubahnya. Masukkan promosi beli-N-percuma-F dan beg percuma dikira untuk anda; jika kedai cuma beri beberapa beg lebih, taip terus nombor itu dalam Percuma (tekan kembali ke auto untuk set semula).",
+      "Di bawahnya anda nampak berapa beg yang sebenarnya diterima, jumlah berat, berapa pokok yang dapat dibaja, dan berapa baki. Jika anda cuma kurang satu dua beg untuk dapat promosi, ada peringatan.",
+      "Kos hanya mengira beg yang anda bayar — beg percuma tidak dicaj, jadi akaun kekal betul.",
+      "Rekod, kongsi WhatsApp, eksport Excel dan laporan kos semuanya berfungsi sama untuk membaja.",
+      "Barisan yang dipilih dengan 🏡 di laman utama terus masuk ke rekod, jadi ia tidak tanya lagi — ia ditunjukkan untuk pengesahan sahaja, dan anda ubah semula di laman utama. Jika anda tidak pernah guna 🏡, lokasi boleh dibiarkan kosong.",
+      "Bila satu pusingan ambil beberapa hari, tanda barisan yang siap hari ini dan selebihnya kali berikutnya; sejarah dan eksport tunjuk dengan tepat apa yang sudah dibuat.",
+      "Eksport ialah satu fail Excel dengan dua lembaran — Bahan kimia dan Baja — setiap satu hanya ada lajur yang berkaitan.",
+    ]},
+    {icon:"🔖", title:"4. Stor (📦 di bahagian atas)", body:[
+      "Butang 📦 di bahagian atas membuka Stor. Hanya dua tab: Ada (berapa yang tinggal) dan Beli (berapa perlu beli, dan berapa harganya).",
+      "Beli dibuka dengan apa sahaja yang sedang dikira di laman utama — bahan kimia semburan dan baja — dibandingkan dengan stok yang ada, jadi ia beritahu berapa pek lagi yang kurang. Tekan satu dan borang akan diisi.",
+      "Masukkan harga setiap pek dan ia kira jumlah pembelian. Dengan promosi, ia juga tunjuk harga sebenar setiap pek setelah beg percuma dikira — nombor ini untuk bandingkan dua kedai. Harga yang anda bayar kali lepas ditunjukkan di sebelahnya.",
+      "Harga yang ditaip terus disimpan, jadi anda boleh betulkan harga tanpa membuat pembelian. Laporan kos menggunakannya. Menyimpan pembelian juga memasukkan barang ke dalam stok.",
+      "Ada ialah satu senarai untuk baja dan bahan kimia bersama. Bila produk sudah banyak, ia dibahagikan kepada bahagian Bahan kimia dan Baja dengan bilangannya; jika sedikit, ia kekal satu senarai biasa dengan label pada setiap baris. Kotak carian muncul bila senarai panjang. Tekan satu baris untuk lihat keluar masuk produk itu. Hanya yang betul-betul ada disenaraikan — produk yang habis digunakan akan hilang dari senarai, tetapi masih boleh dipilih dalam Beli dan Kira; yang digunakan lebih daripada stok ditunjukkan sebagai terlebih.",
+      "Beri unit pada saiz pek: 50kg atau 25kg untuk pepejal, 1L atau 500ml untuk cecair. Nombor tanpa unit tidak akan diteka. Ukur baki dalam pek yang sudah dibuka dengan jenis unit yang sama — ml atau L untuk botol, g atau kg untuk beg — dan baki ditunjukkan dalam unit itu — pepejal dikira dalam pek, cecair dalam botol.",
+      "Tekan 🔖 Kira stok untuk mengira. Produk yang paling baru anda guna muncul sebagai butang (sehingga lapan, yang terbaru dahulu) — satu tekan mengisi nama dan saiz pek, jadi anda hanya taip kuantiti. Jika stor besar, taip beberapa huruf untuk tapis, dan kotak carian muncul di atas senarai bila anda ada lebih daripada lapan produk. Produk baru boleh terus ditaip.",
+      "Tekan satu produk dalam Ada untuk lihat keluar masuknya, dan untuk tetapkan Labelnya. Baja, Baja daun, Racun serangga, Racun kulat, Racun rumpai, Bahan pelekat dan Bahan kimia sudah tersedia, dan anda boleh tambah sendiri — berguna untuk ingat kegunaan sesuatu produk. Satu produk boleh ada beberapa label, dan muncul di bawah setiap label itu. Tekan label yang sudah ada untuk membuangnya.",
+      "Merekod semburan atau baja akan tolak jumlah yang digunakan secara automatik, dan memadam rekod akan pulangkannya. Pembelian atau kiraan yang dipadam masuk ke Tetapan → Tong sampah dahulu, di mana ia boleh dipulihkan; mengosongkan tong sampah barulah membuangnya terus.",
+    ]},
+    {icon:"📝", title:"5. Rekod semburan", body:[
+      "Tekan Rekod semburan untuk simpan satu semburan: pilih lokasi, pekerja, dan tarikh/masa.",
+      "Sasaran boleh jadi seluruh ladang, satu zon, satu barisan, atau pokok tertentu.",
+      "Setiap rekod menyimpan salinan campuran (tukar harga kemudian tidak akan mengubah rekod lama).",
+      "Bahan kimia dalam campuran anda sentiasa dicatat dalam rekod. Harga seunit tidak wajib, tetapi digalakkan — dengan itu kos setiap semburan dikira secara automatik, dan anda boleh lihat perbelanjaan dari masa ke masa."
+    ]},
+    {icon:"🏡", title:"6. Struktur ladang (tetapan)", body:[
+      "Bina ladang → zon → barisan → pokok dalam Tetapan.",
+      "Zon dan barisan boleh dijana cepat ikut julat: A-Z, AA-ZZ (676), 1-50, C1-C20 — sediakan ladang besar sekali gus.",
+      "Semasa memilih sasaran untuk rekod, kotak carian muncul sendiri bila zon/barisan sudah banyak.",
+      "Item yang dipadam masuk ke Tong sampah — boleh dipulihkan atau dipadam terus."
+    ]},
+    {icon:"👷", title:"7. Pekerja (tetapan)", body:[
+      "Beri setiap pekerja ID pekerja dan nama; ID ditukar ke huruf besar secara automatik dan tidak boleh sama.",
+      "ID boleh diguna semula: bila pekerja berhenti, ID mereka boleh diberi kepada pekerja baru (berguna bila pekerja asing kerap bertukar) — ia tidak akan bertembung dengan pekerja yang masih aktif.",
+      "Memilih pekerja semasa merekod: sehingga 10 orang ditunjuk sebagai butang tekan; lebih daripada 10, kotak carian dan senarai muncul sendiri supaya kumpulan besar tetap senang dicari (cari ikut ID atau nama).",
+      "Import pukal dari Excel / CSV (dua lajur: ID pekerja, Nama) untuk masukkan seluruh kumpulan sekali gus."
+    ]},
+    {icon:"💰", title:"8. Harga dan kos (Stor → Beli)", body:[
+      "Harga dimasukkan dalam Stor → Beli: pilih produk dan masukkan RM setiap pek (atau setiap botol). Taip sahaja sudah cukup — tidak perlu betul-betul membuat pembelian.",
+      "Dengan promosi, yang diingat ialah kos sebenar setiap pek: wang dibayar dibahagi pek diterima. Beli sepuluh percuma satu akan turunkan kos seunit dengan sendiri, jadi kos penggunaan dikira dengan betul.",
+      "Rekod menyimpan harga pada hari ia disimpan; tukar harga kemudian tidak akan mengubah rekod lama. Rekod yang disimpan sebelum ada harga boleh diberi harga dengan satu tekan dari laporan kos.",
+      "Harga perlukan saiz pek (1L, 25kg), jika tidak kos satu pek tidak dapat dikira — Beli akan beritahu bila ia tiada.",
+    ]},
+    {icon:"📊", title:"9. Laporan kos (dalam Stor)", body:[
+      "Tekan Laporan kos di bahagian Harga bahan kimia.",
+      "Dikumpul ikut bulan secara automatik, dengan jumlah setiap bulan dan jumlah keseluruhan. Bulan kekal dilipat, tajuknya menunjukkan bilangan rekod bulan itu dan kosnya; buka satu untuk lihat butiran, supaya rekod setahun dua tidak jadi senarai yang terlalu panjang.",
+      "Setiap rekod pecahkan kos ikut bahan kimia (bagus untuk campuran tangki).",
+      "Laras manual: naikkan atau turunkan jumlah — diskaun promosi, caj penghantaran — dan tulis sebabnya di sebelah, yang disimpan dan dieksport. Ia hanya mengubah wang; stok tidak disentuh, jadi jika anda betul-betul guna lebih banyak produk, betulkan rekod atau biar kiraan stok yang membetulkannya.",
+      "Salah taip tidak bermakna perlu padam dan taip semula: tekan ✎ pada rekod dan seluruh campuran dimuat semula ke laman utama — betulkan nombor, tekan Rekod, dan ia disimpan ke rekod yang sama, dengan tarikh, tempat dan orang yang asal, dan stok dikira semula ikut angka baru. Berhenti mengedit dan apa sahaja yang anda campur sebelum itu akan kembali seperti asal.",
+      "Rekod boleh dipadam / dipulihkan / dibuang terus, dan dieksport ke Excel."
+    ]},
+    {icon:"📴", title:"10. Luar talian, sandaran dan akhir tahun", body:[
+      "Boleh digunakan tanpa internet, sesuai untuk dusun yang lemah liputan, dan boleh ditambah ke Skrin Utama supaya berjalan seperti aplikasi. Butang glob menukar antara 中文 / English / Bahasa Malaysia.",
+      "Sandaran (Tetapan → Sandaran) menyimpan fail .json yang mengandungi semuanya — ladang, zon, barisan, pekerja, produk dan harga, label, rekod dan stok. Simpan satu sebelum tukar telefon atau kosongkan rekod setahun.",
+      "Pemulihan menggabungkan data: apa sahaja yang tiada dalam peranti ini akan ditambah, dan jika kedua-dua pihak ada rekod yang sama, suntingan yang terkemudian akan digunakan — jadi pembetulan atau padaman yang dibuat di telefon pekerja turut dibawa bila anda gabungkan. Import fail yang sama dua kali tidak mengubah apa-apa. Nama telefon ini sendiri sahaja dikecualikan, dan dibiarkan seperti sedia ada. Mesej selepas itu memberitahu berapa rekod yang masuk dan berapa yang diganti dengan versi lebih baru.",
+      "Bila anda gabungkan rekod orang lain: setiap baris yang dieksport membawa nombor rekodnya, jadi fail sama yang dihantar dua kali dikenali sebagai entri yang sama dan tidak dikira dua kali. Namakan telefon dalam Tetapan → Telefon ini dan nama fail eksport serta lembaran Maklumat fail akan menyatakan dari telefon mana ia datang, supaya orang yang mengumpulnya boleh bezakan.",
+      "Akhir tahun (Tetapan → Akhir tahun) menyimpan dua fail dahulu — buku kerja Excel untuk dibaca orang dan chemlog-archive_… .json untuk aplikasi — kemudian mengosongkan rekod sebelum tarikh yang anda pilih, dan membawa stok ke hadapan sebagai satu kiraan. Pulihkan .json itu jika anda perlukan rekod lama semula.",
+      "Jika telefon tidak dapat menyimpan (storan penuh, pelayaran peribadi) satu bar merah akan muncul di bawah. Selesaikan masalah itu dahulu sebelum teruskan, jika tidak entri baru mungkin hilang.",
+      "Buka dua tetingkap serentak adalah selamat: bila satu menyimpan, yang satu lagi akan ambil perubahan itu dan tidak menimpanya.",
+      "Panduan ini ada dalam Tetapan → Panduan pengguna, bila-bila masa anda mahu baca lagi.",
+    ]}
+  ];
+  return L3(zh,en,ms);
 }
 function renderGuide(){
   const S=STR[lang];
